@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "NUDGEL",
+    "slug": "nudgel",
+    "version": "4.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "android": {
+      "package": "com.nudgel.app",
+      "edgeToEdgeEnabled": true
+    }
+  }
+}
