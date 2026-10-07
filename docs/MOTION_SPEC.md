@@ -1,6 +1,6 @@
 # Motion specification
 
-The two cookbooks preserve different interaction systems. They share native glass controls, Skia photo lenses, Reanimated, Gesture Handler, and a keyboard provider; they do not share one animation model.
+The two cookbooks preserve different interaction systems. They share platform-adapted glass controls, Skia photo lenses, Reanimated, Gesture Handler, and a keyboard provider; they do not share one animation model.
 
 ## Cookbook 1 (Fable)
 
@@ -22,11 +22,15 @@ The two cookbooks preserve different interaction systems. They share native glas
 - Layout tracks the finger directly. A separate trailing spring changes lens reflection, tilt, and deformation. Offscreen lenses do not receive continuous light updates.
 - Conversation routes use the contact ID as their navigation identity, so preloading one contact cannot redirect a different selection.
 - A selected portrait travels between measured inbox and conversation slots. The native route fades over 220ms. The portrait spring uses stiffness 245, damping 27, mass 0.85 and a 12-point arc. A 1.4-second recovery timer clears interrupted flights.
-- Photo expansion uses Expo Router `Link.AppleZoom` / `Link.AppleZoomTarget`. Pinch is bounded between 1x and 3x. The photo route disables interactive native dismissal so image pinches cannot start a competing return transition; the Close control retains the native zoom-out animation.
+- On iOS, photo expansion uses Expo Router `Link.AppleZoom` / `Link.AppleZoomTarget`. Android uses a native-stack fade with a centered Reanimated scale-in as the closest platform-native fallback; it is not a source-to-destination shared-element transition. Pinch is bounded between 1x and 3x. The photo route disables interactive native dismissal so image pinches cannot start a competing return transition; the Close control remains available.
 - Reduced Motion bypasses portrait flight and uses a simpler rail transition. Reanimated honors the system preference for ordinary springs and timings.
+
+## Navigation
+
+Compose and settings retain native `formSheet` presentations. React Native Screens uses the UIKit sheet on iOS and Material bottom-sheet behavior on Android; detent, keyboard, and nested-navigation details still need on-device verification for each supported Android target.
 
 ## Glass
 
-Controls use `expo-glass-effect` and Apple's native iOS 26 material. Portraits use custom Skia shaders to refract their local photographs. Keep native glass ancestors visible: zero opacity can disable Apple's effect. The source includes fallbacks, but this gallery targets iOS.
+On iOS 26+, controls use `expo-glass-effect` and Apple's native material. Android uses a targeted `expo-blur` surface with translucent tint/edge treatments; the blur method is enabled on Android 12+ and gracefully falls back to a translucent surface on earlier versions. Android uses Material Symbol mappings for the existing SF Symbol names. Portraits use the same custom Skia shaders and measured Reanimated flight on both platforms. Apple's Liquid Glass and zoom transition remain iOS-specific, so Android aims for close motion and material similarity rather than pixel-identical native effects.
 
 Motion validation is documented in `VERIFICATION.md`. Simulator captures demonstrate behavior and visual continuity; they are not a physical-device frame-rate benchmark.

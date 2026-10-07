@@ -12,8 +12,10 @@ import {
   isGlassEffectAPIAvailable,
   isLiquidGlassAvailable,
 } from "expo-glass-effect";
-import { SymbolView, type SymbolViewProps } from "expo-symbols";
+import type { SymbolViewProps } from "expo-symbols";
 import { LinearGradient } from "expo-linear-gradient";
+import { PlatformSymbol } from "../shared/PlatformSymbol";
+import { GlassSurface } from "../shared/GlassSurface";
 import * as Haptics from "expo-haptics";
 import { createButton } from "@gluestack-ui/button";
 import { useChat } from "./data";
@@ -47,7 +49,7 @@ export function Icon({
 }) {
   const t = useTheme();
   return (
-    <SymbolView
+    <PlatformSymbol
       name={name}
       size={size}
       weight="medium"
@@ -76,18 +78,14 @@ export function Glass({
   const t = useTheme();
   if (!nativeGlass)
     return (
-      <View
-        style={[
-          {
-            backgroundColor: t.bubble,
-            borderRadius: 28,
-            borderCurve: "continuous",
-          },
-          style,
-        ]}
+      <GlassSurface
+        dark={t.dark}
+        clear={clear}
+        tint={tint}
+        style={[{ borderRadius: 28, borderCurve: "continuous" }, style]}
       >
         {children}
-      </View>
+      </GlassSurface>
     );
   return (
     <GlassView

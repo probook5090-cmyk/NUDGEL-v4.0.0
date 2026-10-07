@@ -1,6 +1,6 @@
 # Verification
 
-Validated on September 27, 2026 with the bundled Release app. The app runs without Metro or a network service.
+The iOS simulator/release record below was captured on September 27, 2026. Android support was added on October 7, 2026; the Android config, native prebuild, and JavaScript export are checked separately below. Android device/emulator visuals are not claimed without a connected SDK/emulator.
 
 ## Automated checks
 
@@ -8,11 +8,17 @@ Validated on September 27, 2026 with the bundled Release app. The app runs witho
 | --- | --- |
 | Clean `npm ci` | Passed; lockfile installs successfully. |
 | Strict TypeScript and Expo ESLint | Passed. |
-| Node regression suite | 18 tests covering message IDs, blank/invalid submissions, read/reset state, reactions, persistence isolation, actual router query parsing, asset integrity, route adapters, and documentation links. |
-| `npx expo-doctor` | 21/21 checks passed. |
-| `npm audit` | Zero reported vulnerabilities. |
-| iOS JavaScript export | Passed. |
-| Native iOS Release build | Passed; zero errors. Generated native dependencies emit Xcode deprecation warnings; TypeScript and lint are clean. |
+| Node regression suite | 19 tests covering message IDs, blank/invalid submissions, read/reset state, reactions, persistence isolation, actual router query parsing, Android configuration, asset integrity, route adapters, and documentation links. |
+| `npx expo-doctor` (September 27 iOS baseline) | 21/21 checks passed then; not rerun for the Android port. |
+| `npm audit` (October 7, 2026) | 22 advisories in the current dependency tree (21 high, 1 critical); dependency remediation was not part of this Android-port change. |
+| iOS JavaScript export | Passed after the Android changes. |
+| Android Expo config and native prebuild | Passed with `npx expo prebuild --platform android --no-install`; no APK was built. |
+| Android JavaScript export | Passed with `npx expo export --platform android`. |
+| Native iOS Release build | Previously recorded as passed; generated native dependencies emit Xcode deprecation warnings. |
+
+## Android coverage
+
+This environment has no `adb`, `ANDROID_HOME`, or `ANDROID_SDK_ROOT`, so it cannot compile/install the native Android app or run emulator/device interaction checks. Expo prebuild confirms the Android native project can be generated; it does not prove a Gradle build or device runtime. Validate Fable story gestures, Astra portrait flight, form sheets, dark/light mode, keyboard movement, Android 12+ blur and the older translucent fallback, photo pinch/close, and Reduce Motion on an Android emulator/device before calling the port device-verified.
 
 ## Simulator checks
 
@@ -54,4 +60,4 @@ Stop recording with Control-C. The result is written to `.qa/recordings/walkthro
 
 ## Limits
 
-This is an iOS UI cookbook with local sample data. No messaging backend, authentication, calling, or voice-recording service is included. Android, web, physical-device frame-rate measurements, and network integrations are not verified targets. Simulator recordings demonstrate interaction and visual continuity; their frame rate is not a claim about hardware performance.
+This is a cross-platform native UI cookbook with local sample data. No messaging backend, authentication, calling, or voice-recording service is included. Android is configured and its JavaScript bundle and native prebuild pass, but native Android compilation and device/emulator behavior remain unverified in this environment. Web and physical-device frame-rate measurements are not verified targets. Simulator recordings demonstrate interaction and visual continuity; their frame rate is not a claim about hardware performance.

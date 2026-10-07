@@ -81,7 +81,7 @@ export function GlassFlight() {
   return (
     <View
       pointerEvents="none"
-      style={[StyleSheet.absoluteFill, { zIndex: 100 }]}
+      style={[StyleSheet.absoluteFill, { zIndex: 100, elevation: 100 }]}
     >
       <TravelingPortrait flight={flight} />
     </View>

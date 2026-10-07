@@ -1,5 +1,4 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { SymbolView } from "expo-symbols";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import Animated, {
@@ -13,6 +12,7 @@ import Animated, {
 } from "react-native-reanimated";
 
 import { GlassButton } from "../ui/glass-button";
+import { PlatformSymbol } from "../../../shared/PlatformSymbol";
 import { Orb } from "../ui/orb";
 import { OrbButton } from "../ui/orb-button";
 import { Accent, Type } from "../../constants/theme";
@@ -318,7 +318,7 @@ function StoryItem({
             style={[styles.add, { backgroundColor: theme.chip }]}
             accessibilityElementsHidden
           >
-            <SymbolView
+            <PlatformSymbol
               name="plus"
               size={26}
               weight="medium"

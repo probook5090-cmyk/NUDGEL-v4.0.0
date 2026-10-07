@@ -1,7 +1,6 @@
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { SymbolView } from "expo-symbols";
 import {
   Pressable,
   ScrollView,
@@ -12,6 +11,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COOKBOOKS } from "../cookbooks/registry";
+import { PlatformSymbol } from "../cookbooks/shared/PlatformSymbol";
 
 const previews = {
   fable: [
@@ -101,7 +101,7 @@ export default function Gallery() {
               <Text style={[styles.name, { color: ink }]}>
                 {cookbook.title}
               </Text>
-              <SymbolView name="arrow.up.right" size={19} tintColor={ink} />
+              <PlatformSymbol name="arrow.up.right" size={19} tintColor={ink} />
             </View>
             <Text style={[styles.description, { color: secondary }]}>
               {cookbook.description}

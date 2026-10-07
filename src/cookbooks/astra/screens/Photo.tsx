@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, useWindowDimensions } from "react-native";
+import { Platform, View, Text, useWindowDimensions } from "react-native";
 import { Link, router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Image } from "expo-image";
@@ -9,6 +9,7 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
+  ZoomIn,
 } from "react-native-reanimated";
 import { coast } from "../data";
 import { GlassButton } from "../ui";
@@ -64,14 +65,27 @@ export default function Photo() {
         />
       </View>
       <GestureDetector gesture={pinch}>
-        <Animated.View style={style}>
-          <Link.AppleZoomTarget>
+        <Animated.View
+          style={style}
+          entering={
+            Platform.OS === "android" ? ZoomIn.duration(240) : undefined
+          }
+        >
+          {Platform.OS === "ios" ? (
+            <Link.AppleZoomTarget>
+              <Image
+                source={coast}
+                contentFit="contain"
+                style={{ width, height: (width * 2) / 3 }}
+              />
+            </Link.AppleZoomTarget>
+          ) : (
             <Image
               source={coast}
               contentFit="contain"
               style={{ width, height: (width * 2) / 3 }}
             />
-          </Link.AppleZoomTarget>
+          )}
         </Animated.View>
       </GestureDetector>
       <View

@@ -1,5 +1,4 @@
 import * as Haptics from "expo-haptics";
-import { SymbolView } from "expo-symbols";
 import { useRef, useState } from "react";
 import {
   Alert,
@@ -18,6 +17,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
+import { PlatformSymbol } from "../../../shared/PlatformSymbol";
 import { Glass } from "../ui/glass";
 import { EASE_OUT } from "../../constants/motion";
 import { Accent, Radius, Space, Type } from "../../constants/theme";
@@ -120,7 +120,7 @@ export function Composer({
                 hitSlop={6}
                 style={[styles.round, { backgroundColor: theme.chip }]}
               >
-                <SymbolView
+                <PlatformSymbol
                   name="plus"
                   size={19}
                   weight="medium"
@@ -149,7 +149,7 @@ export function Composer({
                     hitSlop={6}
                     style={[styles.round, { backgroundColor: theme.chip }]}
                   >
-                    <SymbolView
+                    <PlatformSymbol
                       name="mic.fill"
                       size={18}
                       weight="medium"
@@ -172,7 +172,7 @@ export function Composer({
                     onPress={submit}
                     style={[styles.round, { backgroundColor: theme.outgoing }]}
                   >
-                    <SymbolView
+                    <PlatformSymbol
                       name="arrow.up"
                       size={17}
                       weight="bold"

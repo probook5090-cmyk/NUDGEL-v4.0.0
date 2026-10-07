@@ -64,6 +64,22 @@ test("Cookbook route adapters resolve to independently organized screen implemen
       assert.ok(existsSync(path.resolve(path.dirname(file), `${target}.tsx`)));
     }
 });
+test("Expo configuration and scripts include Android native support", () => {
+  const app = JSON.parse(
+    readFileSync(path.join(root, "app.json"), "utf8"),
+  ).expo;
+  const pkg = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
+  assert.ok(app.platforms.includes("ios"));
+  assert.ok(app.platforms.includes("android"));
+  assert.match(app.android.package, /^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$/);
+  assert.equal(app.android.softwareKeyboardLayoutMode, "resize");
+  assert.ok(pkg.dependencies["expo-system-ui"]);
+  assert.equal(pkg.scripts.android, "expo run:android");
+  assert.equal(
+    pkg.scripts["android:release"],
+    "expo run:android --variant release",
+  );
+});
 test("Runtime source excludes capture probes, workstation paths, and empty press handlers", () => {
   for (const file of sources) {
     const source = readFileSync(file, "utf8");

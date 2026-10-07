@@ -9,9 +9,11 @@ import {
   View,
   Text,
   TextInput,
+  Platform,
   Pressable,
   Keyboard,
   ActionSheetIOS,
+  Alert,
   type ScrollViewProps,
   useWindowDimensions,
 } from "react-native";
@@ -138,22 +140,26 @@ function Conversation({ id }: { id: string }) {
     );
     scroll();
   };
-  const options = () =>
+  const toggleMute = () => {
+    useChat.getState().toggleMute(id);
+    setToast(muted ? "Conversation unmuted" : "Conversation muted");
+  };
+  const options = () => {
+    const action = muted ? "Unmute conversation" : "Mute conversation";
+    if (Platform.OS === "android") {
+      Alert.alert("Conversation options", undefined, [
+        { text: action, onPress: toggleMute },
+        { text: "Cancel", style: "cancel" },
+      ]);
+      return;
+    }
     ActionSheetIOS.showActionSheetWithOptions(
-      {
-        options: [
-          muted ? "Unmute conversation" : "Mute conversation",
-          "Cancel",
-        ],
-        cancelButtonIndex: 1,
-      },
+      { options: [action, "Cancel"], cancelButtonIndex: 1 },
       (button) => {
-        if (button === 0) {
-          useChat.getState().toggleMute(id);
-          setToast(muted ? "Conversation unmuted" : "Conversation muted");
-        }
+        if (button === 0) toggleMute();
       },
     );
+  };
   const react = (message: string) => {
     useChat.getState().heart(id, message);
     setReaction(null);
@@ -543,6 +549,14 @@ function Conversation({ id }: { id: string }) {
     </View>
   );
 }
+function PlatformPhotoZoom({ children }: { children: React.ReactNode }) {
+  return Platform.OS === "ios" ? (
+    <Link.AppleZoom>{children}</Link.AppleZoom>
+  ) : (
+    <>{children}</>
+  );
+}
+
 function Bubble({
   message,
   index,
@@ -621,7 +635,7 @@ function Bubble({
               onLongPress={onLongPress}
               delayLongPress={350}
             >
-              <Link.AppleZoom>
+              <PlatformPhotoZoom>
                 <View
                   collapsable={false}
                   style={{
@@ -674,7 +688,7 @@ function Bubble({
                     </Glass>
                   </View>
                 </View>
-              </Link.AppleZoom>
+              </PlatformPhotoZoom>
             </Pressable>
           </Link>
         ) : (

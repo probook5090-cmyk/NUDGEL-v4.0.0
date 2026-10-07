@@ -15,6 +15,10 @@
         "CADisableMinimumFrameDurationOnPhone": true
       }
     },
+    "android": {
+      "package": "io.appllama.liquidglasschat",
+      "softwareKeyboardLayoutMode": "resize"
+    },
     "plugins": [
       "expo-router",
       "expo-image",
@@ -38,7 +42,7 @@
       ],
       "expo-font"
     ],
-    "platforms": ["ios"],
+    "platforms": ["ios", "android"],
     "experiments": {
       "typedRoutes": true
     }

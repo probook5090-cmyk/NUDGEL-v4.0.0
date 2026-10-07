@@ -1,4 +1,5 @@
 import { Stack } from "expo-router";
+import { Platform } from "react-native";
 import { GlassFlight } from "../../cookbooks/astra/GlassFlight";
 import { useTheme } from "../../cookbooks/astra/theme";
 
@@ -37,7 +38,13 @@ export default function AstraLayout() {
             sheetCornerRadius: 36,
           }}
         />
-        <Stack.Screen name="photo" options={{ gestureEnabled: false }} />
+        <Stack.Screen
+          name="photo"
+          options={{
+            gestureEnabled: false,
+            animation: Platform.OS === "android" ? "fade" : "default",
+          }}
+        />
       </Stack>
       <GlassFlight />
     </>

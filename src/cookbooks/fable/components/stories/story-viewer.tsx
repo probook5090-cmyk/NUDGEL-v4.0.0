@@ -62,7 +62,7 @@ export function StoryHost() {
       importantForAccessibility={active ? "yes" : "no-hide-descendants"}
       accessibilityViewIsModal={!!active}
       pointerEvents={active ? "box-none" : "none"}
-      style={StyleSheet.absoluteFill}
+      style={[StyleSheet.absoluteFill, { zIndex: 1000, elevation: 1000 }]}
     >
       <>
         {active && <StatusBar style="light" />}

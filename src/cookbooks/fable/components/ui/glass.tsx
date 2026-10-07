@@ -1,4 +1,3 @@
-import { BlurView } from "expo-blur";
 import {
   GlassView,
   isGlassEffectAPIAvailable,
@@ -7,12 +6,12 @@ import {
 import type { ReactNode } from "react";
 import {
   StyleSheet,
-  View,
   type StyleProp,
   type ViewProps,
   type ViewStyle,
 } from "react-native";
 
+import { GlassSurface } from "../../../shared/GlassSurface";
 import { useScheme } from "../../hooks/use-theme";
 
 export const GLASS =
@@ -55,32 +54,16 @@ export function Glass({
       </GlassView>
     );
   }
-  const flat = StyleSheet.flatten(style) ?? {};
   return (
-    <View style={[styles.base, style, { overflow: "hidden" }]} {...rest}>
-      <BlurView
-        intensity={40}
-        tint={scheme === "dark" ? "dark" : "light"}
-        style={[
-          StyleSheet.absoluteFill,
-          { borderRadius: flat.borderRadius as number | undefined },
-        ]}
-      />
-      <View
-        pointerEvents="none"
-        style={[
-          StyleSheet.absoluteFill,
-          {
-            backgroundColor:
-              tint ??
-              (scheme === "dark"
-                ? "rgba(40,40,44,0.55)"
-                : "rgba(255,255,255,0.55)"),
-          },
-        ]}
-      />
+    <GlassSurface
+      dark={scheme === "dark"}
+      clear={effect === "clear"}
+      tint={tint}
+      style={[styles.base, style]}
+      {...rest}
+    >
       {children}
-    </View>
+    </GlassSurface>
   );
 }
 

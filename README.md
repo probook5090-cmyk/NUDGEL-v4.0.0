@@ -14,6 +14,7 @@
   <img alt="Expo SDK 57" src="https://img.shields.io/badge/Expo_SDK-57-000020?logo=expo&logoColor=white">
   <img alt="React Native 0.86" src="https://img.shields.io/badge/React_Native-0.86-61DAFB?logo=react&logoColor=111827">
   <img alt="iOS 26" src="https://img.shields.io/badge/iOS-26-17191B?logo=apple&logoColor=white">
+  <img alt="Android" src="https://img.shields.io/badge/Android-enabled-3DDC84?logo=android&logoColor=white">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white">
   <a href="./LICENSE"><img alt="MIT" src="https://img.shields.io/badge/Code-MIT-F2C94C"></a>
 </p>
@@ -35,7 +36,7 @@
 <td><img src="./docs/images/fable-chat.png" width="270" alt="Fable conversation with floating glass composer"></td>
 </tr></table>
 
-A compact portrait cluster unfolds into a horizontally scrolling story rail. Conversations sit in a quiet rounded panel, with dark outgoing bubbles and a floating native glass composer. Open a story, share its photo, or type a message and receive a local sample reply.
+A compact portrait cluster unfolds into a horizontally scrolling story rail. Conversations sit in a quiet rounded panel, with dark outgoing bubbles and a floating glass-style composer. Open a story, share its photo, or type a message and receive a local sample reply.
 
 ### Cookbook 2 (Astra)
 
@@ -45,9 +46,9 @@ A compact portrait cluster unfolds into a horizontally scrolling story rail. Con
 <td><img src="./docs/images/astra-chat.png" width="270" alt="Astra glass conversation and coastal photograph"></td>
 </tr></table>
 
-A reversible ribbon fans out from the header. The selected portrait travels into the conversation while the page fades around it. Native glass bubbles, a keyboard-following composer, photo zoom, and heart reactions complete the flow.
+A reversible ribbon fans out from the header. The selected portrait travels into the conversation while the page fades around it. Glass-style bubbles, a keyboard-following composer, a platform-adapted photo transition, and heart reactions complete the flow.
 
-<p align="center"><sub>Previews are direct iPhone simulator captures of this implementation.</sub></p>
+<p align="center"><sub>Previews are direct iPhone simulator captures; Android is supported but not pictured.</sub></p>
 
 | Cookbook | Route | Source | Artwork | Integration prompt |
 | --- | --- | --- | --- | --- |
@@ -64,21 +65,17 @@ These are UI cookbooks with local sample content. Messages do not leave the devi
 
 ## Run the Expo gallery
 
-Requirements: macOS, Node.js 22.13 or newer, Xcode 26 or newer, CocoaPods, and an iOS 26 simulator. This gallery targets iPhone portrait layouts. Native dependencies include Skia, MMKV, and Keyboard Controller, so use a native build.
+Requirements: Node.js 22.13 or newer. A native build is required because the app uses Skia, MMKV, and Keyboard Controller. For iOS builds, use macOS, Xcode 26 or newer, CocoaPods, and an iOS 26 simulator. For Android builds, install Android Studio and the Android SDK/JDK versions required by Expo SDK 57, then boot an emulator or connect a device.
 
 ```bash
 cd liquid-glass-chat-ui
 npm ci
-npm run ios:release
+npm run android:release # Android emulator/device
+# or, on macOS:
+npm run ios:release     # iOS simulator/device
 ```
 
-Choose your simulator when prompted. A Release build bundles JavaScript and runs without Metro. For development:
-
-```bash
-npm run ios
-```
-
-The first native build takes longer while CocoaPods installs dependencies. `ios/` is generated from `app.json` and is intentionally ignored. There are no required environment variables, credentials, remote image URLs, or services.
+For development, use `npm run android` or `npm run ios`. A Release build bundles JavaScript and runs without Metro. Generated `android/` and `ios/` projects come from `app.json` and are intentionally ignored. There are no required environment variables, credentials, remote image URLs, or services.
 
 Open a cookbook directly on a booted simulator:
 
@@ -111,11 +108,11 @@ Study:
 - src/cookbooks/NotFound.tsx for invalid conversation routes
 - assets/cookbooks/fable/, docs/MOTION_SPEC.md, docs/ASSET_PROVENANCE.md
 
-Before editing, inspect my Expo SDK, package manager, native build settings, router, state, and theme. Copy only Fable and its transitive helpers. Adapt the route URLs to my existing routes; do not copy the gallery or Astra. Preserve the 104pt folding story rail, three-portrait cluster, horizontal story browsing, glass lens shaders, story dismissal gestures, grouped bubbles, and keyboard-following composer. Keep native sheets for compose and preferences. Mount StoryHost once above the Fable navigator, inside safe-area, Gesture Handler, and Keyboard Controller providers. Preload portraits before showing the inbox.
+Before editing, inspect my Expo SDK, package manager, native build settings, router, state, and theme. Copy only Fable and its transitive helpers. Adapt the route URLs to my existing routes; do not copy the gallery or Astra. Preserve the 104pt folding story rail, three-portrait cluster, horizontal story browsing, glass lens shaders, story dismissal gestures, grouped bubbles, and keyboard-following composer. Keep native sheets for compose and preferences on both platforms where supported. On Android, map SF Symbols to Material Symbols and use a targeted expo-blur surface with a translucent fallback on older Android versions. Mount StoryHost once above the Fable navigator, inside safe-area, Gesture Handler, and Keyboard Controller providers. Preload portraits before showing the inbox.
 
-Use the existing packages in my app when compatible. This cookbook uses Expo Router, expo-glass-effect, expo-blur, expo-image, expo-linear-gradient, expo-symbols, expo-haptics, Skia, Reanimated, Worklets, Gesture Handler, Keyboard Controller, safe-area context, FlashList, Zustand, and MMKV. Rebuild native code after dependency changes.
+Use the existing packages in my app when compatible. This cookbook uses Expo Router, expo-glass-effect, expo-blur, expo-image, expo-linear-gradient, expo-symbols, expo-system-ui, expo-haptics, Skia, Reanimated, Worklets, Gesture Handler, Keyboard Controller, safe-area context, FlashList, Zustand, and MMKV. Rebuild native code after dependency changes.
 
-Replace sample people, artwork, text, and storage namespaces with my product's identity. Keep simulated replies visibly local until connected to my backend. Verify folding/unfolding, interrupted drags, stories, back navigation, keyboard appearance/dismissal, message persistence, photo sharing, invalid deep links, light/dark appearance, and Reduce Motion on an iPhone simulator. Run TypeScript and lint. Report changed files and remaining platform limits.
+Replace sample people, artwork, text, and storage namespaces with my product's identity. Keep simulated replies visibly local until connected to my backend. Verify folding/unfolding, interrupted drags, stories, back navigation, keyboard appearance/dismissal, message persistence, photo sharing, invalid deep links, light/dark appearance, and Reduce Motion on iOS and Android. Run TypeScript, lint, and both platform exports. Report changed files and remaining platform limits.
 ```
 
 </details>
@@ -138,11 +135,11 @@ Study:
 - src/cookbooks/NotFound.tsx for invalid conversation routes
 - assets/cookbooks/astra/, docs/MOTION_SPEC.md, docs/ASSET_PROVENANCE.md
 
-Before editing, inspect my Expo SDK, package manager, native build settings, router, state, and theme. Copy only Astra and its transitive helpers. Adapt the route URLs to my existing routes; do not copy the gallery or Fable. Preserve the same portrait nodes through compact/expanded states, the drop-before-fan path, touch-down spring catching, release velocity, lens response, measured portrait flight, native 220ms route fade, Apple photo zoom, and keyboard-following composer. Mount GlassFlight once above the Astra navigator. Preserve native form sheets for compose and preferences, and keep invalid deep links safe. Preserve contact-specific route identity when retaining conversation preloading. Keep gestureEnabled disabled on the photo route so native return gestures do not compete with image pinches; retain its Close control.
+Before editing, inspect my Expo SDK, package manager, native build settings, router, state, and theme. Copy only Astra and its transitive helpers. Adapt the route URLs to my existing routes; do not copy the gallery or Fable. Preserve the same portrait nodes through compact/expanded states, the drop-before-fan path, touch-down spring catching, release velocity, lens response, measured portrait flight, native 220ms route fade, Apple photo zoom on iOS, and keyboard-following composer. On Android, use mapped Material Symbols, Android-compatible glass, and a similar fade/scale photo transition. Mount GlassFlight once above the Astra navigator. Preserve native form sheets for compose and preferences, and keep invalid deep links safe. Preserve contact-specific route identity when retaining conversation preloading. Keep gestureEnabled disabled on the photo route so native return gestures do not compete with image pinches; retain its Close control.
 
 Use existing compatible packages. This cookbook uses Expo Router, expo-glass-effect, expo-image, expo-linear-gradient, expo-symbols, expo-haptics, Skia, Reanimated, Worklets, Gesture Handler, Keyboard Controller, safe-area context, FlashList, Zustand, MMKV, and Gluestack Button. Keep my existing styling setup. Rebuild native code after dependency changes.
 
-Replace sample people, artwork, text, and storage namespaces with my product's identity. Verify search, filters, composing, sending, read state, mute, reactions, attachment sharing, photo open/close/pinch, portrait flight in both directions, rapid taps, light/dark appearance, and Reduce Motion on an iPhone simulator. Run TypeScript and lint. Report changed files and remaining platform limits.
+Replace sample people, artwork, text, and storage namespaces with my product's identity. Verify search, filters, composing, sending, read state, mute, reactions, attachment sharing, photo open/close/pinch, portrait flight in both directions, rapid taps, light/dark appearance, and Reduce Motion on iOS and Android. Run TypeScript, lint, and both platform exports. Report changed files and remaining platform limits.
 ```
 
 </details>
@@ -151,8 +148,9 @@ Replace sample people, artwork, text, and storage namespaces with my product's i
 
 | Surface | Implementation |
 | --- | --- |
-| Buttons, sheets, and composers | Apple's native iOS 26 material through `expo-glass-effect`. |
-| Photographic portraits | Custom Skia runtime shaders: refraction, edge highlights, and subtle chromatic separation. |
+| Buttons, sheets, and composers | Native iOS 26 material through `expo-glass-effect`; Android uses targeted `expo-blur` on API 31+ and a translucent material fallback on older releases. |
+| Photographic portraits | Custom Skia runtime shaders on both platforms: refraction, edge highlights, and subtle chromatic separation. |
+| System icons | SF Symbols on Apple platforms, explicitly mapped to Material Symbols on Android. |
 | Fable story rail | Scroll-driven Reanimated transforms; the same portraits move between their compact and expanded positions. |
 | Astra ribbon | Gesture-driven shared progress with velocity-aware settling and a separate optical-response spring. |
 | Keyboard | `react-native-keyboard-controller` keeps the composer and conversation aligned with interactive keyboard dismissal. |
@@ -198,17 +196,19 @@ tests/                       State, persistence, assets, and repository checks
 ```bash
 npm run verify
 npx expo-doctor
+npx expo export --platform ios
+npx expo export --platform android
 ```
 
-`verify` runs strict TypeScript, Expo ESLint, and regression tests for rapid submissions, unknown recipients, blank messages, reactions, read state, reset behavior, storage isolation, route adapters, asset integrity, and documentation links. [GitHub Actions](./.github/workflows/ci.yml) also exports the iOS JavaScript bundle.
+`verify` runs strict TypeScript, Expo ESLint, and regression tests for rapid submissions, unknown recipients, blank messages, reactions, read state, reset behavior, storage isolation, route adapters, asset integrity, and documentation links. [GitHub Actions](./.github/workflows/ci.yml) exports both iOS and Android JavaScript bundles.
 
-With a native build installed and Maestro available:
+With a native iOS build installed and Maestro available:
 
 ```bash
 SIMULATOR_UDID=<your-device-id> npm run test:ios
 ```
 
-Native flows cover both cookbooks. Optional compact-layout checks are in `scripts/maestro-layouts/`; `scripts/verify-stories.py` uses an IDB companion for gestures inside the six-second story window. The test device, commands, results, and limitations are recorded in [Verification](./docs/VERIFICATION.md). For motion review, record the device with `scripts/record-ios.sh`; raw recordings and test output stay in ignored `.qa/`.
+The iOS Maestro flows cover both cookbooks. For Android, run `npm run android` with an Android emulator or device attached. The Android JS export is automated in CI; native Android interaction checks are not yet automated. Optional compact-layout checks are in `scripts/maestro-layouts/`; `scripts/verify-stories.py` uses an IDB companion for gestures inside the six-second story window. The test device, commands, results, and limitations are recorded in [Verification](./docs/VERIFICATION.md). For motion review, record the device with `scripts/record-ios.sh`; raw recordings and test output stay in ignored `.qa/`.
 
 ## Frequently asked questions
 
@@ -218,15 +218,15 @@ Native flows cover both cookbooks. Optional compact-layout checks are in `script
 
 **Does it run in Expo Go?** Use a native build; this project includes MMKV and other native dependencies.
 
-**What about Android and web?** This gallery targets iOS. Some primitives have fallbacks, but the photo transition, native sheets, and glass behavior are iOS-specific. Android and web are not claimed as verified targets.
+**What about Android and web?** Android is an enabled native target. It shares the Skia portrait lenses and Reanimated portrait-flight motion, uses Material Symbols, React Native Screens' Android form-sheet behavior, and a platform-specific frosted-glass fallback. Its photo viewer uses a fade/scale transition instead of Apple's iOS-only zoom. Apple Liquid Glass remains iOS-only. Android JavaScript export is checked in CI, but an Android native build and device/emulator visual pass still need to be run in an Android environment. Web is not a verified target.
 
 **Can I use one cookbook?** Yes. Each implementation is self-contained under its own source and asset folder. Follow its integration prompt and retain the required providers and route adapters.
 
-**Can I use the code in a commercial or closed-source iOS app?** Yes. The original code is MIT-licensed. Retain the copyright and permission notice, and follow the separate dependency licenses and asset terms described in [NOTICE.md](./NOTICE.md).
+**Can I use the code in a commercial or closed-source app?** Yes. The original code is MIT-licensed. Retain the copyright and permission notice, and follow the separate dependency licenses and asset terms described in [NOTICE.md](./NOTICE.md).
 
 ## Contributing
 
-Keep each cookbook independent, retain light/dark and accessibility behavior, document motion changes, and include provenance for new artwork. Run `npm run verify` and the simulator flows for changes to interaction. Keep generated native projects, agent files, credentials, caches, and raw recordings out of commits.
+Keep each cookbook independent, retain light/dark and accessibility behavior, document motion changes, and include provenance for new artwork. Run `npm run verify` and both platform exports; use iOS simulator and Android emulator/device flows for interaction changes when available. Keep generated native projects, agent files, credentials, caches, and raw recordings out of commits.
 
 ## License and notice
 

@@ -1,4 +1,4 @@
-import { SymbolView, type SFSymbol } from "expo-symbols";
+import { type SFSymbol } from "expo-symbols";
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet } from "react-native";
 import Animated, {
@@ -7,6 +7,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
+import { PlatformSymbol } from "../../../shared/PlatformSymbol";
 import { Glass } from "./glass";
 import { EASE_OUT, PRESS_MS } from "../../constants/motion";
 import { useTheme } from "../../hooks/use-theme";
@@ -62,7 +63,7 @@ export function GlassButton({
       >
         {children ??
           (symbol ? (
-            <SymbolView
+            <PlatformSymbol
               name={symbol}
               size={iconSize}
               weight="semibold"

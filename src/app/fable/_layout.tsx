@@ -1,5 +1,6 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { Platform } from "react-native";
 import { StoryHost } from "../../cookbooks/fable/components/stories/story-viewer";
 import { useScheme, useTheme } from "../../cookbooks/fable/hooks/use-theme";
 
@@ -42,7 +43,10 @@ export default function FableLayout() {
         />
         <Stack.Screen
           name="photo"
-          options={{ presentation: "fullScreenModal" }}
+          options={{
+            presentation: Platform.OS === "ios" ? "fullScreenModal" : "modal",
+            animation: Platform.OS === "android" ? "fade" : "default",
+          }}
         />
       </Stack>
       <StoryHost />
