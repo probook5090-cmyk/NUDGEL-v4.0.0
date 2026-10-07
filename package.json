@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "expo": "~57.0.27",
+    "expo-blur": "~57.0.3",
+    "expo-linear-gradient": "~57.0.2",
     "react": "19.2.3",
     "react-native": "0.86.3",
     "react-native-safe-area-context": "~5.7.0"

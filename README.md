@@ -1,21 +1,27 @@
 # NUDGEL
 
-A small, native Expo + React Native Android app with a single static chat-list home screen. Contact rows are display-only; they do not open another screen.
+A single-screen Expo + React Native conversation inspired by the Astra Liquid Glass chat reference. The screen opens directly into Mira Ellis’s sample chat, with frosted message surfaces, a shared coastal photo, a keyboard-aware composer, local sample replies, and message reactions.
 
-## Run on your Android device
+## Run in Expo Go (Android or iOS)
 
-1. Install Node.js and Expo Go on your Android device.
-2. From this directory, run:
+Requirements: Node.js LTS and Expo Go on your phone.
 
-   ```sh
-   npm install
-   npx expo start
-   ```
+```sh
+npm install
+npx expo start
+```
 
-3. Scan the QR code shown by Expo CLI with Expo Go while your computer and phone are on the same network.
+Keep the terminal running, connect the phone and computer to the same Wi-Fi, open Expo Go, and scan the QR code. If the LAN connection is blocked, stop Expo with `Ctrl+C` and use:
 
-The Android export can be checked without building an APK:
+```sh
+npx expo start --tunnel
+```
+
+The app uses Expo Go-compatible packages and bundled local artwork. On iOS, `expo-blur` supplies the system-backed frosted surface; Android uses backdrop blur on supported Android versions with translucent tints, gradient highlights, borders, and elevation as the safe fallback. This is a Liquid Glass-inspired treatment, not exact iOS 26 Liquid Glass parity. The app has no backend; sent messages and replies are simulated locally.
+
+To validate JavaScript bundling for either platform without building an APK or native project:
 
 ```sh
 npx expo export --platform android
+npx expo export --platform ios
 ```
