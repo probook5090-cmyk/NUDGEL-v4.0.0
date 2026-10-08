@@ -147,24 +147,26 @@ def add_click(t_sec):
     right[i0:i0+ln] += sig
     add_pop_chime(t_sec + 0.03, 880.0, 0.12)
 
-# Scene transition whooshes
-for tw in [0.15, 2.0, 5.1, 8.5, 15.0, 22.0, 24.2, 28.5, 30.4, 35.5, 42.0, 44.5, 48.5, 50.3, 53.4, 54.8]:
-    add_whoosh(tw)
+# Scene transition whooshes + Apple-style crystal shimmer on all 18 3-second shot cuts
+shot_cuts = [0.10, 2.8, 5.8, 8.8, 11.8, 14.8, 17.8, 20.8, 23.8, 26.8, 29.8, 32.8, 35.8, 38.8, 41.8, 44.8, 47.8, 50.8, 53.8]
+for idx_w, tw in enumerate(shot_cuts):
+    add_whoosh(tw - 0.14, dur=0.38, amp=0.16)
+    add_pop_chime(tw + 0.06, 587.33 if idx_w % 2 == 0 else 783.99, 0.09)
 
-# Avatar & pill pop chimes in Scene 1b and Scene 7
-for idx, tp in enumerate([2.20, 2.32, 2.44, 2.56, 35.85, 36.00, 36.15, 36.30, 37.20]):
-    add_pop_chime(tp, 520.0 + idx * 55.0, 0.13)
+# Avatar & widget pop chimes across the 19 shots
+for idx, tp in enumerate([1.0, 2.95, 3.08, 3.20, 3.32, 9.28, 12.48, 27.18, 33.05, 33.18, 33.30, 33.42, 45.20, 54.18]):
+    add_pop_chime(tp, 520.0 + (idx % 6) * 65.0, 0.13)
 
 # Cursor click & UI highlight chimes
-for tc in [16.7, 23.2, 25.6, 31.7, 38.2, 43.2, 49.5]:
+for tc in [12.55, 18.65, 21.68, 30.58, 37.60, 40.00, 48.65]:
     add_click(tc)
 
-# Finale shimmering chord at t=55.0s ("⚡ Supahub")
-fi = int(54.9 * SR)
+# Finale shimmering chord at t=53.8s ("⚡ Supahub")
+fi = int(53.8 * SR)
 fl = N - fi
 if fl > 0:
     lt = np.arange(fl) / SR
-    f_env = (1.0 - np.exp(-lt * 18.0)) * np.exp(-lt * 1.4) * 0.10
+    f_env = (1.0 - np.exp(-lt * 18.0)) * np.exp(-lt * 1.1) * 0.11
     for f_c in [440.0, 554.37, 659.25, 880.0, 1108.73]:
         tone = np.sin(2.0 * np.pi * f_c * lt) * f_env
         left[fi:] += tone

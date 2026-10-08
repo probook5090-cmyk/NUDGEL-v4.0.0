@@ -1,8 +1,8 @@
 // ============================================================================
 // supahub_ad_renderer.cpp
-// High-Precision C++17 OpenMP 3D Perspective UI & Kinetic Motion-Graphics
-// Renderer for the 57-Second Zelios x Supahub SaaS Promotional Brand Video
-// (Recreation of https://youtu.be/aAvDI1qae-U)
+// Apple-Level 3D Perspective UI & Kinetic Motion-Graphics Renderer
+// 19 Dynamic 3-Second Shots (57.0s @ 24fps) with 3D Whip/Zoom Transitions,
+// Real-Time Glass Specular Light Sweeps, Multi-Plane Z-Parallax & Anamorphic Flares
 // ============================================================================
 
 #include <cmath>
@@ -36,6 +36,10 @@ inline float smoothstep(float e0, float e1, float x) {
     float t = clampf((x - e0) / (e1 - e0), 0.0f, 1.0f);
     return t * t * (3.0f - 2.0f * t);
 }
+inline float ease_in_cubic(float t) {
+    t = clampf(t, 0.0f, 1.0f);
+    return t * t * t;
+}
 inline float ease_out_cubic(float t) {
     t = clampf(t, 0.0f, 1.0f);
     float u = 1.0f - t;
@@ -46,7 +50,7 @@ inline float ease_in_out_cubic(float t) {
     return t < 0.5f ? 4.0f * t * t * t : 1.0f - std::pow(-2.0f * t + 2.0f, 3.0f) * 0.5f;
 }
 // Under-damped spring response from 0 -> 1 for kinetic typography & UI pop-ins
-inline float spring_pop(float t, float t0, float dur=0.55f, float freq=9.5f, float damping=4.8f) {
+inline float spring_pop(float t, float t0, float dur=0.48f, float freq=9.2f, float damping=4.8f) {
     if (t <= t0) return 0.0f;
     float dt = (t - t0) / dur;
     if (dt >= 3.0f) return 1.0f;
@@ -73,6 +77,14 @@ inline void blend_over(float& dst_r, float& dst_g, float& dst_b, const RGBA& src
     dst_r = src.r * a + dst_r * (1.0f - a);
     dst_g = src.g * a + dst_g * (1.0f - a);
     dst_b = src.b * a + dst_b * (1.0f - a);
+}
+
+inline void blend_add(float& dst_r, float& dst_g, float& dst_b, const RGBA& src) {
+    float a = clampf(src.a, 0.0f, 1.0f);
+    if (a <= 1e-4f) return;
+    dst_r = clampf(dst_r + src.r * a, 0.0f, 1.0f);
+    dst_g = clampf(dst_g + src.g * a, 0.0f, 1.0f);
+    dst_b = clampf(dst_b + src.b * a, 0.0f, 1.0f);
 }
 
 struct Sprite {
@@ -125,7 +137,12 @@ static void load_all_sprites() {
         "txt_feature", "txt_requests", "txt_give_users", "txt_share_ideas",
         "txt_collect_feedback", "txt_merge_duplicates", "txt_prioritize",
         "txt_public_roadmap", "txt_personalize_1", "txt_personalize_2",
-        "txt_announce_updates", "txt_close_loop", "logo_supahub_finale"
+        "txt_announce_updates", "txt_close_loop", "logo_supahub_finale",
+        // New Apple-level extra widgets & kinetic headers
+        "txt_custom_statuses", "txt_value_effort", "txt_drag_drop",
+        "txt_all_in_one", "txt_upvote_live", "txt_vote_behalf_hdr",
+        "widget_new_post", "widget_upvote_burst", "widget_rice_score",
+        "widget_changelog_toast", "widget_cta_pill"
     };
     for (const char* name : names) {
         std::string meta_path = std::string("/tmp/supahub_assets/") + name + ".meta";
@@ -164,30 +181,38 @@ struct FrameBuffer {
 };
 
 // ============================================================================
-// Background Shaders (Dark Midnight Violet & Luminous Pastel Lavender)
-// Separable 1D Gaussian tables -> 15x faster at 4K UHD (3840x2160)!
+// Apple Dark-Field & Pearl Studio Background + 3D Perspective Grid & Bokeh
 // ============================================================================
 static void fill_background(FrameBuffer& fb, float dark_mix, float t) {
     int W = fb.W, H = fb.H;
-    float gx1 = 0.5f + 0.18f * std::sin(t * 0.7f);
-    float gy1 = 0.42f + 0.12f * std::cos(t * 0.5f);
-    float gx2 = 0.75f - 0.15f * std::cos(t * 0.6f);
-    float gy2 = 0.65f + 0.10f * std::sin(t * 0.8f);
+    float gx1 = 0.50f + 0.22f * std::sin(t * 0.95f);
+    float gy1 = 0.40f + 0.14f * std::cos(t * 0.75f);
+    float gx2 = 0.72f - 0.20f * std::cos(t * 0.85f);
+    float gy2 = 0.66f + 0.12f * std::sin(t * 1.05f);
 
     std::vector<float> ex1(W), ex2(W), ey1(H), ey2(H);
     for (int x = 0; x < W; ++x) {
         float nx = (float)x / (float)W;
-        float dx1 = (nx - gx1) * 1.6f;
-        float dx2 = (nx - gx2) * 1.5f;
-        ex1[x] = std::exp(-dx1 * dx1 * 2.8f);
-        ex2[x] = std::exp(-dx2 * dx2 * 3.5f);
+        float dx1 = (nx - gx1) * 1.55f;
+        float dx2 = (nx - gx2) * 1.45f;
+        ex1[x] = std::exp(-dx1 * dx1 * 2.6f);
+        ex2[x] = std::exp(-dx2 * dx2 * 3.2f);
     }
     for (int y = 0; y < H; ++y) {
         float ny = (float)y / (float)H;
         float dy1 = ny - gy1;
         float dy2 = ny - gy2;
-        ey1[y] = std::exp(-dy1 * dy1 * 2.8f);
-        ey2[y] = std::exp(-dy2 * dy2 * 3.5f);
+        ey1[y] = std::exp(-dy1 * dy1 * 2.6f);
+        ey2[y] = std::exp(-dy2 * dy2 * 3.2f);
+    }
+
+    // Precompute subtle architectural grid X lines (shifted by camera drift t)
+    float drift_x = t * 0.045f;
+    std::vector<float> grid_x(W);
+    for (int x = 0; x < W; ++x) {
+        float nx = (float)x / (float)W + drift_x;
+        float gx = std::fabs(std::fmod(nx * 16.0f, 1.0f) - 0.5f);
+        grid_x[x] = smoothstep(0.018f, 0.0f, gx);
     }
 
     float inv_dark = 1.0f - dark_mix;
@@ -195,22 +220,125 @@ static void fill_background(FrameBuffer& fb, float dark_mix, float t) {
     for (int y = 0; y < H; ++y) {
         float ny = (float)y / (float)H;
         float y_g1 = ey1[y], y_g2 = ey2[y];
+        float gy_mod = std::fabs(std::fmod((ny + t * 0.02f) * 9.0f, 1.0f) - 0.5f);
+        float gy_line = smoothstep(0.020f, 0.0f, gy_mod);
+        // Vignette for grid so it fades softly toward edges
+        float vig = std::sin(ny * PI);
+
         float* row = &fb.rgb[(size_t)y * W * 3];
         for (int x = 0; x < W; ++x) {
             float g1 = ex1[x] * y_g1;
             float g2 = ex2[x] * y_g2;
+            float gr = std::max(grid_x[x], gy_line) * vig * 0.045f;
 
-            float dr = 0.068f + 0.11f * g1 + 0.09f * g2;
-            float dg = 0.032f + 0.03f * g1 + 0.02f * g2;
-            float db = 0.138f + 0.20f * g1 + 0.14f * g2;
+            // Deep Apple Obsidian-Violet Dark Field + Volumetric Dual Nebulae
+            float dr = 0.052f + 0.135f * g1 + 0.110f * g2 + gr * 0.65f;
+            float dg = 0.024f + 0.036f * g1 + 0.028f * g2 + gr * 0.35f;
+            float db = 0.115f + 0.235f * g1 + 0.175f * g2 + gr * 1.00f;
 
-            float lr = 0.985f - 0.035f * g1 - 0.015f * ny;
-            float lg = 0.960f - 0.055f * g1 - 0.030f * g2;
-            float lb = 0.995f - 0.005f * g1;
+            // Crisp Apple Pearl-Lavender Studio Light Mode
+            float lr = 0.985f - 0.032f * g1 - 0.014f * ny - gr * 0.35f;
+            float lg = 0.964f - 0.050f * g1 - 0.026f * g2 - gr * 0.45f;
+            float lb = 0.996f - 0.005f * g1 - gr * 0.15f;
 
             row[x*3 + 0] = dr * dark_mix + lr * inv_dark;
             row[x*3 + 1] = dg * dark_mix + lg * inv_dark;
             row[x*3 + 2] = db * dark_mix + lb * inv_dark;
+        }
+    }
+}
+
+// Floating 3D Parallax Bokeh Orbs for Continuous Depth Motion
+static void draw_ambient_bokeh(FrameBuffer& fb, float t, float dark_mix) {
+    int W = fb.W, H = fb.H;
+    struct Orb { float bx, by, rad, spd_x, spd_y, col_r, col_g, col_b; };
+    static const Orb orbs[6] = {
+        {0.15f, 0.22f, 0.065f,  0.035f, -0.022f, 0.72f, 0.42f, 1.00f},
+        {0.84f, 0.28f, 0.080f, -0.030f,  0.025f, 0.93f, 0.25f, 0.70f},
+        {0.22f, 0.78f, 0.072f,  0.028f,  0.030f, 0.05f, 0.74f, 0.65f},
+        {0.78f, 0.75f, 0.060f, -0.038f, -0.026f, 0.92f, 0.69f, 0.18f},
+        {0.48f, 0.16f, 0.052f,  0.042f,  0.018f, 0.47f, 0.49f, 0.99f},
+        {0.54f, 0.86f, 0.068f, -0.032f, -0.020f, 0.82f, 0.35f, 0.98f}
+    };
+    for (int i = 0; i < 6; ++i) {
+        float cx_n = std::fmod(orbs[i].bx + t * orbs[i].spd_x + 10.0f, 1.0f);
+        float cy_n = std::fmod(orbs[i].by + t * orbs[i].spd_y + 10.0f, 1.0f);
+        float cx = cx_n * W, cy = cy_n * H;
+        float r_px = orbs[i].rad * H;
+        int x0 = std::max(0, (int)(cx - r_px));
+        int x1 = std::min(W - 1, (int)(cx + r_px));
+        int y0 = std::max(0, (int)(cy - r_px));
+        int y1 = std::min(H - 1, (int)(cy + r_px));
+        float inv_r = 1.0f / r_px;
+        float base_a = dark_mix > 0.5f ? 0.11f : 0.075f;
+        #pragma omp parallel for schedule(static)
+        for (int y = y0; y <= y1; ++y) {
+            float dy = (y - cy) * inv_r;
+            float* row = &fb.rgb[(size_t)y * W * 3];
+            for (int x = x0; x <= x1; ++x) {
+                float dx = (x - cx) * inv_r;
+                float r2 = dx*dx + dy*dy;
+                if (r2 >= 1.0f) continue;
+                float falloff = (1.0f - r2) * (1.0f - r2);
+                // Soft bokeh ring edge + inner glow
+                float ring = std::exp(-std::pow((std::sqrt(r2) - 0.72f) * 5.0f, 2.0f)) * 0.5f;
+                float a = (falloff * 0.65f + ring) * base_a;
+                if (dark_mix > 0.5f) {
+                    blend_add(row[x*3+0], row[x*3+1], row[x*3+2],
+                              RGBA(orbs[i].col_r, orbs[i].col_g, orbs[i].col_b, a));
+                } else {
+                    blend_over(row[x*3+0], row[x*3+1], row[x*3+2],
+                               RGBA(orbs[i].col_r, orbs[i].col_g, orbs[i].col_b, a));
+                }
+            }
+        }
+    }
+}
+
+// Apple-Style Anamorphic Horizontal Lens Flare Sweep on Shot Transitions
+static void draw_anamorphic_transition(FrameBuffer& fb, float t) {
+    // 18 cut points separating our 19 3-second shots
+    static const float cuts[18] = {
+        2.8f,  5.8f,  8.8f, 11.8f, 14.8f, 17.8f,
+       20.8f, 23.8f, 26.8f, 29.8f, 32.8f, 35.8f,
+       38.8f, 41.8f, 44.8f, 47.8f, 50.8f, 53.8f
+    };
+    float best_dt = 999.0f;
+    int cut_idx = 0;
+    for (int i = 0; i < 18; ++i) {
+        float dt = t - cuts[i];
+        if (std::fabs(dt) < std::fabs(best_dt)) {
+            best_dt = dt;
+            cut_idx = i;
+        }
+    }
+    const float half_win = 0.24f;
+    if (std::fabs(best_dt) >= half_win) return;
+
+    float u = (best_dt + half_win) / (2.0f * half_win); // 0..1 across cut
+    float env = std::sin(u * PI); // peaks at 1.0 right on the cut
+    int W = fb.W, H = fb.H;
+    float streak_x = ((cut_idx % 2 == 0) ? u : (1.0f - u)) * W;
+    float streak_y = (0.42f + 0.16f * std::sin(cut_idx * 1.7f)) * H;
+    float rx = 0.55f * W;
+    float ry = 0.085f * H;
+
+    int y0 = std::max(0, (int)(streak_y - ry * 2.5f));
+    int y1 = std::min(H - 1, (int)(streak_y + ry * 2.5f));
+
+    #pragma omp parallel for schedule(static)
+    for (int y = y0; y <= y1; ++y) {
+        float dy = (y - streak_y) / ry;
+        float ey_core = std::exp(-dy * dy * 6.0f);
+        float ey_halo = std::exp(-dy * dy * 0.45f) * 0.35f;
+        float* row = &fb.rgb[(size_t)y * W * 3];
+        for (int x = 0; x < W; ++x) {
+            float dx = (x - streak_x) / rx;
+            float ex = std::exp(-dx * dx * 2.2f);
+            float intensity = (ey_core + ey_halo) * ex * env * 0.65f;
+            if (intensity <= 1e-3f) continue;
+            blend_add(row[x*3+0], row[x*3+1], row[x*3+2],
+                      RGBA(0.95f, 0.62f + 0.35f * ey_core, 1.0f, intensity));
         }
     }
 }
@@ -274,7 +402,6 @@ static void draw_star_4pt(
             float ax = std::fabs(ux);
             float ay = std::fabs(uy);
             if (ax > 3.8f || ay > 3.8f) continue;
-            // Fast LUT astroid 4-point star metric
             float m = fast_pow056(ax) + fast_pow056(ay);
             if (m > 2.2f) continue;
 
@@ -287,7 +414,6 @@ static void draw_star_4pt(
                 float b = core_col.b * core + glow_col.b * (1.0f - core);
                 blend_over(row[x*3+0], row[x*3+1], row[x*3+2], RGBA(r, g, b, a));
             } else {
-                // Blurred 3D outline star (like foreground bokeh star in Scenes 3, 7, 10)
                 float inner_fill = smoothstep(0.95f, 0.72f, m) * 0.88f;
                 float ring_dist = (m - 0.94f) / outline_thickness;
                 float ring = std::exp(-ring_dist * ring_dist * 1.8f);
@@ -301,9 +427,6 @@ static void draw_star_4pt(
     }
 }
 
-// ============================================================================
-// Sweeping Neon Orbital Light Arc (Scenes 2, 3, 4) & Rounded Hub Circuit (Scene 1)
-// ============================================================================
 static void draw_orbital_arc(
     FrameBuffer& fb,
     float cx_n, float cy_n, float rx_n, float ry_n,
@@ -325,8 +448,8 @@ static void draw_orbital_arc(
             float r = std::sqrt(r2);
             float dist_px = std::fabs(r - 1.0f) * std::min(rx, ry) * (1080.0f / H);
             if (dist_px > 42.0f) continue;
-            float ang = std::atan2(dy, dx); // [-pi, 0] is upper arc
-            float norm_ang = (ang + PI) / PI; // 0 at left (-pi), 1 at right (0)
+            float ang = std::atan2(dy, dx);
+            float norm_ang = (ang + PI) / PI;
             if (norm_ang > progress) continue;
             float head_glow = std::exp(-std::pow((norm_ang - progress) * 10.0f, 2.0f));
             float core = std::exp(-dist_px * dist_px * 0.18f);
@@ -356,14 +479,16 @@ static void draw_rounded_circuit(
             float dx = std::fabs(x - cx) - (hw - rad);
             float d = (std::hypot(std::max(dx, 0.0f), std::max(dy, 0.0f))
                     + std::min(std::max(dx, dy), 0.0f) - rad) / sc;
-            // Soft lavender nested squircles in center + outer pink circuit line
             if (std::fabs(d) < 18.0f) {
                 float line = std::exp(-d * d * 0.25f);
-                float halo = std::exp(-d * d * 0.015f) * 0.35f;
-                float a = clampf((line + halo) * opacity, 0.0f, 1.0f);
-                blend_over(row[x*3+0], row[x*3+1], row[x*3+2], RGBA(0.90f, 0.58f, 0.96f, a));
+                float halo = std::exp(-d * d * 0.015f) * 0.38f;
+                // Traveling energy pulse around the circuit
+                float ang = std::atan2(y - cy, x - cx);
+                float travel = 0.5f + 0.5f * std::sin(ang * 2.0f - pulse_t * 5.0f);
+                float a = clampf((line + halo * (0.7f + 0.6f * travel)) * opacity, 0.0f, 1.0f);
+                blend_over(row[x*3+0], row[x*3+1], row[x*3+2],
+                           RGBA(0.88f + 0.10f * travel, 0.52f + 0.25f * travel, 0.98f, a));
             }
-            // Inner soft lavender squircle pads around center
             float d_in1 = (std::hypot(std::max(std::fabs(x - cx) - 110.0f*sc, 0.0f),
                                       std::max(std::fabs(y - cy) - 110.0f*sc, 0.0f)) - 95.0f*sc) / sc;
             if (d_in1 < 2.0f) {
@@ -375,22 +500,24 @@ static void draw_rounded_circuit(
 }
 
 // ============================================================================
-// 3D Perspective Plane / Card Renderer with Extruded Bevel, Drop Shadow & Sub-Effects
+// 3D Perspective Card Renderer with Apple Specular Glass Sheen & Extruded Bevel
 // ============================================================================
 struct CardEffect {
     bool highlight_pulse = false;
     float pulse_u = 0.5f, pulse_v = 0.5f, pulse_r = 0.0f, pulse_alpha = 0.0f;
     bool theme_wipe = false;
     const Sprite* wipe_sprite = nullptr;
-    float wipe_progress = 0.0f; // 0..1 diagonal wipe
-    float right_shadow_fade = 0.0f; // 0..1 dark vignette on right edge (like Scene 4 Roadmap card)
-    float bottom_shadow_fade = 0.0f; // 0..1 dark vignette on bottom edge (like Scene 3 Portal screen)
+    float wipe_progress = 0.0f;
+    float right_shadow_fade = 0.0f;
+    float bottom_shadow_fade = 0.0f;
+    float glass_sheen_pos = -1.0f; // >0 enables diagonal Apple glass light sweep
+    float glass_sheen_strength = 0.22f;
 };
 
 static void draw_card_3d(
     FrameBuffer& fb,
     const Sprite& sp,
-    float cx_n, float cy_n, float cz, // cz=0 is reference plane; cz>0 is farther, cz<0 is closer
+    float cx_n, float cy_n, float cz,
     float scale,
     float pitch_deg, float yaw_deg, float roll_deg,
     float opacity = 1.0f,
@@ -403,14 +530,11 @@ static void draw_card_3d(
     float aspect = (float)W / (float)H;
     float cam_dist = 2.4f;
 
-    // Card half-sizes in normalized camera height units (H = 2.0 units at z=0)
     float hh = scale;
     float hw = scale * ((float)sp.w / (float)sp.h);
 
-    // Center in 3D camera space
     Vec3 C((cx_n - 0.5f) * 2.0f * aspect, (cy_n - 0.5f) * 2.0f, cz);
 
-    // Rotation matrix R = Rz(roll) * Ry(yaw) * Rx(pitch)
     float rx = pitch_deg * (PI / 180.0f);
     float ry = yaw_deg   * (PI / 180.0f);
     float rz = roll_deg  * (PI / 180.0f);
@@ -419,11 +543,8 @@ static void draw_card_3d(
     float cz_r = std::cos(rz), sz_r = std::sin(rz);
 
     auto rot_vec = [&](Vec3 v) {
-        // Rx
         Vec3 v1(v.x, v.y * cx - v.z * sx, v.y * sx + v.z * cx);
-        // Ry
         Vec3 v2(v1.x * cy + v1.z * sy, v1.y, -v1.x * sy + v1.z * cy);
-        // Rz
         return Vec3(v2.x * cz_r - v2.y * sz_r, v2.x * sz_r + v2.y * cz_r, v2.z);
     };
 
@@ -432,7 +553,6 @@ static void draw_card_3d(
     Vec3 N = rot_vec(Vec3(0, 0, 1));
     Vec3 O(0, 0, -cam_dist);
 
-    // Project the 4 corners (+ margin for shadow & 3D rim) to find screen-space bounding box
     float margin = 1.18f;
     int min_px = W - 1, max_px = 0, min_py = H - 1, max_py = 0;
     for (int sy_i = -1; sy_i <= 1; sy_i += 2) {
@@ -459,6 +579,11 @@ static void draw_card_3d(
     Vec3 CO = C - O;
     float num = dot(CO, N);
 
+    // Automatic dynamic specular sweep derived from 3D tilt if not overridden
+    float auto_sheen = 0.50f + 0.018f * yaw_deg - 0.014f * pitch_deg;
+    float sheen_pos = (fx && fx->glass_sheen_pos >= 0.0f) ? fx->glass_sheen_pos : auto_sheen;
+    float sheen_str = (fx) ? fx->glass_sheen_strength : (draw_3d_rim ? 0.18f : 0.0f);
+
     #pragma omp parallel for schedule(static)
     for (int y = min_py; y <= max_py; ++y) {
         float dir_y = ((float)y / (float)H - 0.5f) * 2.0f;
@@ -473,8 +598,8 @@ static void draw_card_3d(
 
             Vec3 P = O + dir * t_hit;
             Vec3 dP = P - C;
-            float lx = dot(dP, U) / hw; // [-1, +1] inside card
-            float ly = dot(dP, V) / hh; // [-1, +1] inside card
+            float lx = dot(dP, U) / hw;
+            float ly = dot(dP, V) / hh;
 
             float u = lx * 0.5f + 0.5f;
             float v = ly * 0.5f + 0.5f;
@@ -483,45 +608,43 @@ static void draw_card_3d(
                 tex = sp.sample(u, v);
             }
 
-            // Skip shadow & 3D rim behind fully opaque card interior pixels (7x speedup!)
             bool opaque_interior = (tex.a * opacity >= 0.995f);
 
-            // 1. Soft Alpha-Silhouette 3D Drop Shadow (offset down and back, zero rectangular box!)
+            // 1. Soft Alpha-Silhouette 3D Drop Shadow
             if (draw_shadow && !opaque_interior) {
-                float u_sh = (lx - 0.022f) * 0.5f + 0.5f;
-                float v_sh = (ly - 0.048f) * 0.5f + 0.5f;
+                float u_sh = (lx - 0.024f) * 0.5f + 0.5f;
+                float v_sh = (ly - 0.052f) * 0.5f + 0.5f;
                 if (u_sh >= -0.04f && u_sh <= 1.04f && v_sh >= -0.04f && v_sh <= 1.04f) {
                     float a_sum = 0.0f;
                     const float offs[5][2] = {{0,0}, {-0.012f,0}, {0.012f,0}, {0,-0.012f}, {0,0.012f}};
                     for (int k = 0; k < 5; ++k) {
                         a_sum += sp.sample(u_sh + offs[k][0], v_sh + offs[k][1]).a;
                     }
-                    float sh_a = (a_sum * 0.2f) * 0.28f * opacity;
+                    float sh_a = (a_sum * 0.2f) * 0.34f * opacity;
                     if (sh_a > 1e-3f) {
-                        blend_over(row[x*3+0], row[x*3+1], row[x*3+2], RGBA(0.05f, 0.02f, 0.12f, sh_a));
+                        blend_over(row[x*3+0], row[x*3+1], row[x*3+2], RGBA(0.04f, 0.015f, 0.10f, sh_a));
                     }
                 }
             }
 
-            // 2. 3D Extruded Purple/Lavender Rim (visible when yaw/pitch tilts the card)
-            if (draw_3d_rim && !opaque_interior && (std::fabs(yaw_deg) > 2.0f || std::fabs(pitch_deg) > 2.0f)) {
-                float rim_dx = (yaw_deg > 0.0f) ? 0.016f : -0.016f;
-                float rim_dy = (pitch_deg > 0.0f) ? 0.014f : -0.014f;
+            // 2. 3D Extruded Anodized Glass Rim
+            if (draw_3d_rim && !opaque_interior && (std::fabs(yaw_deg) > 1.5f || std::fabs(pitch_deg) > 1.5f)) {
+                float rim_dx = (yaw_deg > 0.0f) ? 0.017f : -0.017f;
+                float rim_dy = (pitch_deg > 0.0f) ? 0.015f : -0.015f;
                 float r_u = (lx - rim_dx) * 0.5f + 0.5f;
                 float r_v = (ly - rim_dy) * 0.5f + 0.5f;
                 if (r_u >= 0.0f && r_u <= 1.0f && r_v >= 0.0f && r_v <= 1.0f) {
                     RGBA rim_s = sp.sample(r_u, r_v);
                     if (rim_s.a > 0.2f) {
+                        float spec = 0.65f + 0.35f * std::sin((r_u + r_v) * 6.28f);
                         blend_over(row[x*3+0], row[x*3+1], row[x*3+2],
-                                   RGBA(0.56f, 0.36f, 0.88f, rim_s.a * opacity * 0.92f));
+                                   RGBA(0.58f * spec + 0.25f, 0.36f * spec + 0.15f, 0.96f, rim_s.a * opacity * 0.94f));
                     }
                 }
             }
 
-            // 3. Main Card Surface Sample
+            // 3. Main Card Surface + Apple Specular Glass Reflection
             if (tex.a > 1e-4f) {
-
-                // Optional Theme Wipe (Light Mode -> Dark Mode with glowing neon laser line)
                 if (fx && fx->theme_wipe && fx->wipe_sprite) {
                     float diag = u * 0.75f + v * 0.25f;
                     RGBA tex2 = fx->wipe_sprite->sample(u, v);
@@ -529,41 +652,49 @@ static void draw_card_3d(
                     tex.r = tex2.r * (1.0f - w_edge) + tex.r * w_edge;
                     tex.g = tex2.g * (1.0f - w_edge) + tex.g * w_edge;
                     tex.b = tex2.b * (1.0f - w_edge) + tex.b * w_edge;
-                    // Glowing purple-pink laser seam along wipe edge
-                    float seam = std::exp(-std::pow((diag - fx->wipe_progress) * 45.0f, 2.0f));
+                    float seam = std::exp(-std::pow((diag - fx->wipe_progress) * 42.0f, 2.0f));
                     if (fx->wipe_progress > 0.02f && fx->wipe_progress < 0.98f) {
-                        tex.r = clampf(tex.r + seam * 0.85f, 0.0f, 1.0f);
-                        tex.g = clampf(tex.g + seam * 0.35f, 0.0f, 1.0f);
+                        tex.r = clampf(tex.r + seam * 0.92f, 0.0f, 1.0f);
+                        tex.g = clampf(tex.g + seam * 0.40f, 0.0f, 1.0f);
                         tex.b = clampf(tex.b + seam * 1.00f, 0.0f, 1.0f);
                     }
                 }
 
-                // Optional Interactive Highlight / Upvote Pulse Ring on the 3D Card
                 if (fx && fx->highlight_pulse && fx->pulse_alpha > 1e-3f) {
                     float du = (u - fx->pulse_u) * ((float)sp.w / (float)sp.h);
                     float dv = (v - fx->pulse_v);
                     float d_p = std::hypot(du, dv);
                     float ring = std::exp(-std::pow((d_p - fx->pulse_r) * 28.0f, 2.0f));
-                    float fill = smoothstep(fx->pulse_r, 0.0f, d_p) * 0.35f;
+                    float fill = smoothstep(fx->pulse_r, 0.0f, d_p) * 0.38f;
                     float pa = (ring + fill) * fx->pulse_alpha;
-                    tex.r = tex.r * (1.0f - pa) + 0.65f * pa;
-                    tex.g = tex.g * (1.0f - pa) + 0.22f * pa;
-                    tex.b = tex.b * (1.0f - pa) + 0.98f * pa;
+                    tex.r = tex.r * (1.0f - pa) + 0.72f * pa;
+                    tex.g = tex.g * (1.0f - pa) + 0.26f * pa;
+                    tex.b = tex.b * (1.0f - pa) + 1.00f * pa;
                 }
 
-                // Optional Right-Side Shadow Vignette (matching Scene 4 "Collect feedback" Roadmap card)
-                if (fx && fx->right_shadow_fade > 1e-3f) {
-                    float fade = smoothstep(0.45f, 0.98f, u) * fx->right_shadow_fade;
-                    tex.r = tex.r * (1.0f - fade) + 0.068f * fade;
-                    tex.g = tex.g * (1.0f - fade) + 0.032f * fade;
-                    tex.b = tex.b * (1.0f - fade) + 0.138f * fade;
+                // Real-Time Diagonal Apple Glass Specular Light Sweep
+                if (sheen_str > 1e-3f) {
+                    float diag_uv = u * 0.68f + v * 0.32f;
+                    float ds = diag_uv - sheen_pos;
+                    float band1 = std::exp(-ds * ds * 38.0f);
+                    float band2 = std::exp(-std::pow(ds - 0.07f, 2.0f) * 140.0f) * 0.45f;
+                    float s_val = (band1 + band2) * sheen_str;
+                    tex.r = clampf(tex.r + s_val * 0.95f, 0.0f, 1.0f);
+                    tex.g = clampf(tex.g + s_val * 0.90f, 0.0f, 1.0f);
+                    tex.b = clampf(tex.b + s_val * 1.00f, 0.0f, 1.0f);
                 }
-                // Optional Bottom-Side Shadow Vignette (matching Scene 3 "and share ideas" Portal screen)
+
+                if (fx && fx->right_shadow_fade > 1e-3f) {
+                    float fade = smoothstep(0.48f, 0.98f, u) * fx->right_shadow_fade;
+                    tex.r = tex.r * (1.0f - fade) + 0.055f * fade;
+                    tex.g = tex.g * (1.0f - fade) + 0.025f * fade;
+                    tex.b = tex.b * (1.0f - fade) + 0.120f * fade;
+                }
                 if (fx && fx->bottom_shadow_fade > 1e-3f) {
-                    float fade = smoothstep(0.55f, 0.98f, v) * fx->bottom_shadow_fade;
-                    tex.r = tex.r * (1.0f - fade) + 0.068f * fade;
-                    tex.g = tex.g * (1.0f - fade) + 0.032f * fade;
-                    tex.b = tex.b * (1.0f - fade) + 0.138f * fade;
+                    float fade = smoothstep(0.58f, 0.98f, v) * fx->bottom_shadow_fade;
+                    tex.r = tex.r * (1.0f - fade) + 0.055f * fade;
+                    tex.g = tex.g * (1.0f - fade) + 0.025f * fade;
+                    tex.b = tex.b * (1.0f - fade) + 0.120f * fade;
                 }
 
                 tex.a *= opacity;
@@ -573,20 +704,17 @@ static void draw_card_3d(
     }
 }
 
-// ============================================================================
-// Animated Pointer Cursor + Click Burst Lines (\ | /)
-// ============================================================================
 static void draw_cursor_and_click(
     FrameBuffer& fb,
     float cx_n, float cy_n,
-    float click_burst_t, // 0..1 if clicking, <0 otherwise
+    float click_burst_t,
     float opacity = 1.0f
 ) {
     if (opacity <= 1e-3f) return;
     int W = fb.W, H = fb.H;
     float sc = (float)H / 1080.0f;
     float cx = cx_n * W, cy = cy_n * H;
-    int rad = (int)(72.0f * sc);
+    int rad = (int)(84.0f * sc);
     int x0 = std::max(0, (int)cx - rad);
     int x1 = std::min(W - 1, (int)cx + rad);
     int y0 = std::max(0, (int)cy - rad);
@@ -596,24 +724,28 @@ static void draw_cursor_and_click(
         float* row = &fb.rgb[(size_t)y * W * 3];
         for (int x = x0; x <= x1; ++x) {
             float dx = (x - cx) / sc, dy = (y - cy) / sc;
-            // Click burst rays above-left of tip
             if (click_burst_t > 0.0f && click_burst_t < 1.0f) {
                 float r = std::hypot(dx, dy);
+                // Expanding shockwave ring + radial rays
+                float ring_r = 10.0f + click_burst_t * 48.0f;
+                float ring_a = std::exp(-std::pow((r - ring_r) * 0.35f, 2.0f)) * (1.0f - click_burst_t) * opacity;
+                if (ring_a > 1e-3f) {
+                    blend_over(row[x*3+0], row[x*3+1], row[x*3+2], RGBA(0.93f, 0.25f, 0.70f, ring_a));
+                }
                 float r_in = 14.0f + click_burst_t * 18.0f;
-                float r_out = 28.0f + click_burst_t * 24.0f;
+                float r_out = 28.0f + click_burst_t * 26.0f;
                 if (r >= r_in && r <= r_out) {
                     float ang = std::atan2(dy, dx);
                     for (int k = 0; k < 4; ++k) {
                         float target_a = -2.35f + k * 0.52f;
                         float da = std::fabs(ang - target_a) * r;
-                        if (da < 2.4f) {
+                        if (da < 2.6f) {
                             float ba = (1.0f - click_burst_t) * opacity;
-                            blend_over(row[x*3+0], row[x*3+1], row[x*3+2], RGBA(0.48f, 0.18f, 0.85f, ba));
+                            blend_over(row[x*3+0], row[x*3+1], row[x*3+2], RGBA(0.58f, 0.24f, 0.95f, ba));
                         }
                     }
                 }
             }
-            // Crisp black/white macOS pointer arrow
             if (dx >= -2.0f && dy >= -2.0f && dy <= 34.0f && dx <= dy * 0.72f + 2.0f) {
                 bool in_arrow = (dy <= 24.0f && dx >= 0.0f && dx <= dy * 0.68f)
                              || (dy > 20.0f && dy <= 32.0f && std::fabs(dx - (dy - 12.0f)*0.42f) <= 3.2f);
@@ -621,16 +753,13 @@ static void draw_cursor_and_click(
                 if (in_arrow) {
                     blend_over(row[x*3+0], row[x*3+1], row[x*3+2], RGBA(0.08f, 0.06f, 0.14f, opacity));
                 } else if (in_border) {
-                    blend_over(row[x*3+0], row[x*3+1], row[x*3+2], RGBA(1.0f, 1.0f, 1.0f, opacity * 0.9f));
+                    blend_over(row[x*3+0], row[x*3+1], row[x*3+2], RGBA(1.0f, 1.0f, 1.0f, opacity * 0.92f));
                 }
             }
         }
     }
 }
 
-// ============================================================================
-// Official Zelios 10-Color Palette Swatch Wave (Scene 8 Customization)
-// ============================================================================
 static void draw_color_palette_swatches(FrameBuffer& fb, float cy_n, float t_local, float opacity) {
     if (opacity <= 1e-3f) return;
     static const uint32_t hex_cols[10] = {
@@ -639,11 +768,11 @@ static void draw_color_palette_swatches(FrameBuffer& fb, float cy_n, float t_loc
     };
     int W = fb.W, H = fb.H;
     for (int i = 0; i < 10; ++i) {
-        float pop = spring_pop(t_local, i * 0.055f, 0.45f, 9.0f, 4.5f);
+        float pop = spring_pop(t_local, i * 0.045f, 0.40f, 9.0f, 4.5f);
         if (pop <= 1e-3f) continue;
         float cx_n = 0.14f + i * 0.08f;
-        float wave_y = cy_n - 0.012f * std::sin(t_local * 4.0f - i * 0.55f);
-        float r_px = 34.0f * pop * (H / 1080.0f);
+        float wave_y = cy_n - 0.015f * std::sin(t_local * 5.0f - i * 0.60f);
+        float r_px = 36.0f * pop * (H / 1080.0f);
         float cx = cx_n * W, cy = wave_y * H;
         RGBA c = hex_rgb(hex_cols[i], opacity);
 
@@ -658,16 +787,46 @@ static void draw_color_palette_swatches(FrameBuffer& fb, float cy_n, float t_loc
                 float d = std::hypot(x - cx, y - cy);
                 if (d > r_px * 1.9f) continue;
                 float disc = smoothstep(r_px + 1.2f, r_px - 1.2f, d);
-                float glow = std::exp(-std::pow(std::max(0.0f, d - r_px * 0.8f) / (r_px * 0.45f), 2.0f)) * 0.35f;
+                float glow = std::exp(-std::pow(std::max(0.0f, d - r_px * 0.8f) / (r_px * 0.45f), 2.0f)) * 0.38f;
+                // Specular highlight dot on top-left of each 3D color sphere
+                float spec_d = std::hypot(x - (cx - r_px*0.32f), y - (cy - r_px*0.32f));
+                float spec = smoothstep(r_px * 0.45f, 0.0f, spec_d) * 0.42f * disc;
                 float a = clampf((disc + glow) * opacity, 0.0f, 1.0f);
-                blend_over(row[x*3+0], row[x*3+1], row[x*3+2], RGBA(c.r, c.g, c.b, a));
+                blend_over(row[x*3+0], row[x*3+1], row[x*3+2],
+                           RGBA(clampf(c.r + spec, 0.0f, 1.0f),
+                                clampf(c.g + spec, 0.0f, 1.0f),
+                                clampf(c.b + spec, 0.0f, 1.0f), a));
             }
         }
     }
 }
 
+// Helper for 3-second shot envelope + whip/zoom exit progression
+struct ShotTiming {
+    bool active;
+    float tl;       // local time from shot start
+    float env;      // opacity envelope
+    float enter_u;  // 0->1 spring entrance
+    float exit_u;   // 0->1 cubic whip/zoom exit in last 0.38s
+    float sheen;    // 0->1 sweeping specular glass highlight position
+};
+
+static ShotTiming eval_shot(float t, float t0, float t1) {
+    ShotTiming s{false, 0, 0, 0, 0, 0};
+    const float pad = 0.22f;
+    if (t < t0 - pad || t > t1 + pad) return s;
+    s.active = true;
+    s.tl = std::max(0.0f, t - t0);
+    float dur = t1 - t0;
+    s.env = smoothstep(t0 - pad, t0 + 0.14f, t) * (1.0f - smoothstep(t1 - 0.16f, t1 + pad, t));
+    s.enter_u = spring_pop(t, t0 - 0.08f, 0.46f, 9.2f, 4.8f);
+    s.exit_u  = ease_in_cubic((t - (t1 - 0.36f)) / 0.52f);
+    s.sheen   = clampf((s.tl / std::max(0.5f, dur)) * 1.15f - 0.05f, 0.0f, 1.1f);
+    return s;
+}
+
 // ============================================================================
-// Master Timeline Renderer — 57.0 Seconds (t in [0.0, 57.0])
+// Master 19-Shot Apple-Level Timeline (Changes Every ~3.0 Seconds!)
 // ============================================================================
 static void render_frame(FrameBuffer& fb, float t) {
     const RGBA white(1, 1, 1, 1);
@@ -678,516 +837,728 @@ static void render_frame(FrameBuffer& fb, float t) {
     const RGBA crimson_col = hex_rgb(0xD11846, 1.0f);
     const RGBA violet_col  = hex_rgb(0x7C2ED2, 1.0f);
 
-    // Determine Dark Mode vs Light Mode background mix smoothly across scenes:
-    // Scene 1a (0.0 - 2.0s): Dark (#120924) -> "feature ✦ requests"
-    // Scene 1b (2.0 - 5.2s): Light (#FAF6FF) -> 4 3D Avatars + Discord/Slack/Gmail Hub
-    // Scene 2  (5.2 - 8.5s): Dark (#120924) -> "✦ Give your users a place"
-    // Scene 3  (8.5 - 15.0s): Dark (#120924) -> "and share ideas" + 3D Tilted Portal
-    // Scene 4  (15.0 - 22.0s): Dark (#120924) -> "Collect feedback" + Dual 3D Cards
-    // Scene 5  (22.0 - 28.5s): Light (#FAF6FF) -> "Merge duplicates & vote on behalf"
-    // Scene 6  (28.5 - 35.5s): Dark (#120924) -> "Prioritize what to build next" + Q2 Table & Value vs Effort
-    // Scene 7  (35.5 - 42.0s): Light (#FAF6FF) -> "Public Roadmap" Kanban + 4 3D Avatars + Animated Card Drag
-    // Scene 8  (42.0 - 48.5s): Dark (#120924) -> "Personalize with OpenGraph" + Theme Wipe + Privacy Shield + 10 Colors
-    // Scene 9  (48.5 - 53.5s): Dark (#120924) -> "Announce product updates" + Changelog & Related Posts
-    // Scene 10 (53.5 - 57.0s): Dark->Light -> 3-Module Lockup -> "⚡ Supahub" Finale
-
+    // Dynamic Dark vs Light Studio Transitions across the 19 3-second shots:
+    // Light Studio Shots: Shot 02 (2.8..5.8), Shot 07 & 08 (17.8..23.8),
+    //                     Shot 12 & 13 (32.8..38.8), Shot 17 (47.8..50.8), Shot 19 (53.8..57.0)
     float dark_mix = 1.0f;
-    if (t >= 1.8f && t < 5.2f) {
-        dark_mix = 1.0f - smoothstep(1.8f, 2.2f, t) + smoothstep(4.8f, 5.2f, t);
-    } else if (t >= 21.7f && t < 28.5f) {
-        dark_mix = 1.0f - smoothstep(21.7f, 22.2f, t) + smoothstep(28.1f, 28.5f, t);
-    } else if (t >= 35.2f && t < 42.0f) {
-        dark_mix = 1.0f - smoothstep(35.2f, 35.7f, t) + smoothstep(41.6f, 42.0f, t);
-    } else if (t >= 54.6f) {
-        dark_mix = 1.0f - smoothstep(54.6f, 55.1f, t);
+    auto light_window = [&](float a, float b) {
+        if (t >= a - 0.25f && t < b + 0.25f) {
+            float m = 1.0f - smoothstep(a - 0.22f, a + 0.18f, t) + smoothstep(b - 0.18f, b + 0.22f, t);
+            dark_mix = std::min(dark_mix, clampf(m, 0.0f, 1.0f));
+        }
+    };
+    light_window(2.8f, 5.8f);
+    light_window(17.8f, 23.8f);
+    light_window(32.8f, 38.8f);
+    light_window(47.8f, 50.8f);
+    if (t >= 53.6f) {
+        dark_mix = std::min(dark_mix, 1.0f - smoothstep(53.6f, 54.0f, t));
     }
-    dark_mix = clampf(dark_mix, 0.0f, 1.0f);
+
     fill_background(fb, dark_mix, t);
+    draw_ambient_bokeh(fb, t, dark_mix);
 
     // ========================================================================
-    // SCENE 1A (0.0s - 2.1s): Kinetic Opener "feature ✦ requests"
+    // SHOT 01 (0.0s - 2.8s): Kinetic Hero Ignition — "feature ✦ requests"
     // ========================================================================
-    if (t < 2.2f) {
-        float fade_out = 1.0f - smoothstep(1.85f, 2.15f, t);
-        float p_star = spring_pop(t, 0.05f, 0.45f, 10.0f, 4.5f);
-        float p_left = spring_pop(t, 0.18f, 0.50f,  9.5f, 4.8f);
-        float p_right= spring_pop(t, 0.28f, 0.50f,  9.5f, 4.8f);
+    if (auto s = eval_shot(t, 0.0f, 2.8f); s.active) {
+        float p_star  = spring_pop(s.tl, 0.04f, 0.42f, 10.0f, 4.5f);
+        float p_left  = spring_pop(s.tl, 0.14f, 0.48f,  9.5f, 4.8f);
+        float p_right = spring_pop(s.tl, 0.22f, 0.48f,  9.5f, 4.8f);
+        float zoom_out = 1.0f + 0.45f * s.exit_u;
 
-        // Left word "feature" sliding out from center star
+        // Floating 3D Supahub icon materializing behind star at t=1.1s
+        if (s.tl > 0.9f) {
+            float p_ic = spring_pop(s.tl, 0.95f, 0.45f);
+            draw_card_3d(fb, g_sprites["supahub_icon_3d"],
+                         0.50f, 0.26f - 0.12f * s.exit_u, -0.08f,
+                         0.095f * p_ic * zoom_out,
+                         12.0f * std::sin(s.tl * 3.0f), 18.0f * std::cos(s.tl * 2.5f), 0.0f,
+                         s.env, true, false);
+        }
+
         draw_card_3d(fb, g_sprites["txt_feature"],
-                     0.50f - 0.185f * p_left, 0.50f, 0.0f,
-                     0.135f * p_left, 0.0f, 0.0f, 0.0f, fade_out, false, false);
-        // Right word "requests" sliding out from center star
+                     0.50f - (0.195f * p_left) * zoom_out, 0.52f, 0.0f,
+                     0.142f * p_left * zoom_out, 0.0f, 10.0f * s.exit_u, 0.0f, s.env, false, false);
         draw_card_3d(fb, g_sprites["txt_requests"],
-                     0.50f + 0.205f * p_right, 0.50f, 0.0f,
-                     0.135f * p_right, 0.0f, 0.0f, 0.0f, fade_out, false, false);
-        // Center spinning 4-point star ✦
-        float star_scale = (0.085f + 0.014f * std::sin(t * 8.0f)) * p_star;
-        // Zoom burst at t=1.8..2.1s
-        float zoom_burst = smoothstep(1.75f, 2.15f, t) * 0.45f;
-        draw_star_4pt(fb, 0.50f, 0.50f, star_scale + zoom_burst, star_scale + zoom_burst,
-                      (1.0f - ease_out_cubic(t / 1.2f)) * 90.0f, white, purple_glow, false, 0.08f, fade_out);
+                     0.50f + (0.215f * p_right) * zoom_out, 0.52f, 0.0f,
+                     0.142f * p_right * zoom_out, 0.0f, -10.0f * s.exit_u, 0.0f, s.env, false, false);
+
+        float star_scale = (0.090f + 0.016f * std::sin(s.tl * 9.0f)) * p_star + 0.38f * s.exit_u;
+        draw_star_4pt(fb, 0.50f, 0.52f, star_scale, star_scale,
+                      (1.0f - ease_out_cubic(s.tl / 1.1f)) * 90.0f + s.exit_u * 60.0f,
+                      white, purple_glow, false, 0.08f, s.env);
     }
 
     // ========================================================================
-    // SCENE 1B (1.9s - 5.2s): Central Supahub Hub + 4 3D Customer Avatars + Pills
+    // SHOT 02 (2.8s - 5.8s): Multi-Channel 3D Feedback Orbit (Light Studio)
     // ========================================================================
-    if (t >= 1.9f && t < 5.3f) {
-        float tl = t - 2.0f;
-        float env = smoothstep(1.9f, 2.25f, t) * (1.0f - smoothstep(4.85f, 5.20f, t));
+    if (auto s = eval_shot(t, 2.8f, 5.8f); s.active) {
+        draw_rounded_circuit(fb, 0.50f, 0.50f, 0.42f, 0.42f, 0.15f, s.tl, s.env);
 
-        // Rounded circuit & nested lavender squircles
-        draw_rounded_circuit(fb, 0.50f, 0.50f, 0.42f, 0.42f, 0.15f, tl, env);
-
-        // Central 3D Supahub Purple Icon with spring pop & gentle pulse
-        float p_hub = spring_pop(tl, 0.05f, 0.5f, 9.0f, 4.5f);
-        float pulse = 1.0f + 0.04f * std::sin(tl * 6.0f);
+        float p_hub = spring_pop(s.tl, 0.04f, 0.45f);
+        float pulse = 1.0f + 0.05f * std::sin(s.tl * 7.0f) + 0.30f * s.exit_u;
         draw_card_3d(fb, g_sprites["supahub_icon_3d"],
-                     0.50f, 0.50f, 0.0f, 0.125f * p_hub * pulse,
-                     6.0f * std::sin(tl * 2.5f), 8.0f * std::cos(tl * 2.5f), 0.0f,
-                     env, true, false);
+                     0.50f, 0.50f, 0.0f, 0.132f * p_hub * pulse,
+                     8.0f * std::sin(s.tl * 3.0f), 10.0f * std::cos(s.tl * 3.0f), 0.0f,
+                     s.env, true, false);
 
-        // 4 Chat Pills orbiting slightly inward toward the hub
-        float p1 = spring_pop(tl, 0.20f, 0.50f);
-        float p2 = spring_pop(tl, 0.32f, 0.50f);
-        float p3 = spring_pop(tl, 0.44f, 0.50f);
-        float p4 = spring_pop(tl, 0.56f, 0.50f);
-        float bob1 = 0.008f * std::sin(tl * 3.5f);
-        float bob2 = 0.008f * std::cos(tl * 3.8f);
+        float p1 = spring_pop(s.tl, 0.12f, 0.45f);
+        float p2 = spring_pop(s.tl, 0.22f, 0.45f);
+        float p3 = spring_pop(s.tl, 0.32f, 0.45f);
+        float p4 = spring_pop(s.tl, 0.42f, 0.45f);
+        float bob1 = 0.010f * std::sin(s.tl * 4.2f);
+        float bob2 = 0.010f * std::cos(s.tl * 4.5f);
+        float wx = -0.30f * s.exit_u;
 
-        // Top-left Discord pill + Winking Brunette Avatar
         draw_card_3d(fb, g_sprites["pill_discord"],
-                     0.235f, 0.33f + bob1, 0.0f, 0.074f * p1, 0, 8.0f, 0, env, true, false);
+                     0.235f + wx, 0.33f + bob1, 0.0f, 0.078f * p1, 0, 10.0f, 0, s.env, true, false);
         draw_card_3d(fb, g_sprites["av_brunette_wink"],
-                     0.240f, 0.16f + bob1 * 0.7f, -0.08f, 0.125f * spring_pop(tl, 0.28f),
-                     0, 0, -4.0f * std::sin(tl * 3.0f), env, true, false);
+                     0.240f + wx*1.2f, 0.16f + bob1 * 0.7f, -0.08f, 0.130f * p1,
+                     0, 0, -5.0f * std::sin(s.tl * 3.2f), s.env, true, false);
 
-        // Top-right Slack Warm pill + Winking Blonde Avatar
         draw_card_3d(fb, g_sprites["pill_slack_warm"],
-                     0.705f, 0.32f - bob2, 0.0f, 0.074f * p2, 0, -8.0f, 0, env, true, false);
+                     0.705f - wx, 0.32f - bob2, 0.0f, 0.078f * p2, 0, -10.0f, 0, s.env, true, false);
         draw_card_3d(fb, g_sprites["av_blonde_wink"],
-                     0.710f, 0.15f - bob2 * 0.7f, -0.08f, 0.145f * spring_pop(tl, 0.40f),
-                     0, 0, 4.0f * std::cos(tl * 3.0f), env, true, false);
+                     0.710f - wx*1.2f, 0.15f - bob2 * 0.7f, -0.08f, 0.150f * p2,
+                     0, 0, 5.0f * std::cos(s.tl * 3.2f), s.env, true, false);
 
-        // Bottom-left Slack Teal pill + Adidas Cap Avatar
         draw_card_3d(fb, g_sprites["pill_slack_teal"],
-                     0.350f, 0.85f + bob2, 0.0f, 0.074f * p3, 0, 8.0f, 0, env, true, false);
+                     0.350f + wx, 0.85f + bob2, 0.0f, 0.078f * p3, 0, 10.0f, 0, s.env, true, false);
         draw_card_3d(fb, g_sprites["av_adidas_cap"],
-                     0.268f, 0.65f + bob2 * 0.7f, -0.08f, 0.145f * spring_pop(tl, 0.52f),
-                     0, 0, 3.0f * std::sin(tl * 2.8f), env, true, false);
+                     0.268f + wx*1.2f, 0.65f + bob2 * 0.7f, -0.08f, 0.150f * p3,
+                     0, 0, 4.0f * std::sin(s.tl * 3.0f), s.env, true, false);
 
-        // Bottom-right Gmail Pink pill + Pink Glasses Avatar
         draw_card_3d(fb, g_sprites["pill_gmail_pink"],
-                     0.735f, 0.73f - bob1, 0.0f, 0.074f * p4, 0, -8.0f, 0, env, true, false);
+                     0.735f - wx, 0.73f - bob1, 0.0f, 0.078f * p4, 0, -10.0f, 0, s.env, true, false);
         draw_card_3d(fb, g_sprites["av_pink_glasses"],
-                     0.785f, 0.55f - bob1 * 0.7f, -0.08f, 0.130f * spring_pop(tl, 0.64f),
-                     0, 0, -3.5f * std::cos(tl * 3.2f), env, true, false);
+                     0.785f - wx*1.2f, 0.55f - bob1 * 0.7f, -0.08f, 0.135f * p4,
+                     0, 0, -4.0f * std::cos(s.tl * 3.4f), s.env, true, false);
 
-        // 4 Colorful Zelios 4-Point Stars spinning around the circuit
-        draw_star_4pt(fb, 0.308f, 0.21f, 0.026f*p1, 0.026f*p1, tl*45.0f, violet_col, violet_col, false, 0.08f, env);
-        draw_star_4pt(fb, 0.615f, 0.17f, 0.038f*p2, 0.038f*p2, -tl*35.0f, gold_col, gold_col, false, 0.08f, env);
-        draw_star_4pt(fb, 0.462f, 0.81f, 0.030f*p3, 0.030f*p3, tl*50.0f, teal_col, teal_col, false, 0.08f, env);
-        draw_star_4pt(fb, 0.825f, 0.79f, 0.038f*p4, 0.038f*p4, -tl*40.0f, crimson_col, crimson_col, false, 0.08f, env);
+        draw_star_4pt(fb, 0.308f, 0.21f, 0.028f*p1, 0.028f*p1, s.tl*55.0f, violet_col, violet_col, false, 0.08f, s.env);
+        draw_star_4pt(fb, 0.615f, 0.17f, 0.040f*p2, 0.040f*p2, -s.tl*45.0f, gold_col, gold_col, false, 0.08f, s.env);
+        draw_star_4pt(fb, 0.462f, 0.81f, 0.032f*p3, 0.032f*p3, s.tl*60.0f, teal_col, teal_col, false, 0.08f, s.env);
+        draw_star_4pt(fb, 0.825f, 0.79f, 0.040f*p4, 0.040f*p4, -s.tl*50.0f, crimson_col, crimson_col, false, 0.08f, s.env);
     }
 
     // ========================================================================
-    // SCENE 2 (5.0s - 8.6s): Kinetic Transition "✦ Give your users a place"
+    // SHOT 03 (5.8s - 8.8s): Planetary Horizon Arc — "✦ Give your users a place"
     // ========================================================================
-    if (t >= 5.0f && t < 8.7f) {
-        float tl = t - 5.1f;
-        float env = smoothstep(5.0f, 5.35f, t) * (1.0f - smoothstep(8.25f, 8.65f, t));
-        float arc_prog = clampf(tl / 1.6f, 0.0f, 1.0f);
-        draw_orbital_arc(fb, 0.55f, 0.72f, 0.52f, 0.44f, arc_prog, env * 0.85f);
+    if (auto s = eval_shot(t, 5.8f, 8.8f); s.active) {
+        float arc_prog = clampf(s.tl / 1.25f, 0.0f, 1.0f);
+        draw_orbital_arc(fb, 0.54f, 0.74f - 0.10f * s.exit_u, 0.54f, 0.46f, arc_prog, s.env * 0.92f);
 
-        float p_txt = spring_pop(tl, 0.15f, 0.55f, 9.2f, 4.6f);
+        // Floating glass channel pills drifting in 3D depth parallax behind headline
+        float p_pl = spring_pop(s.tl, 0.20f, 0.50f);
+        draw_card_3d(fb, g_sprites["pill_discord"],
+                     0.22f - 0.12f * s.exit_u, 0.25f + 0.01f*std::sin(s.tl*3.5f), 0.12f,
+                     0.064f * p_pl, 8.0f, 16.0f, -4.0f, s.env * 0.80f, true, false);
+        draw_card_3d(fb, g_sprites["pill_slack_teal"],
+                     0.80f + 0.12f * s.exit_u, 0.28f + 0.01f*std::cos(s.tl*3.5f), 0.10f,
+                     0.064f * p_pl, 8.0f, -16.0f, 4.0f, s.env * 0.80f, true, false);
+
+        float p_txt = spring_pop(s.tl, 0.10f, 0.48f);
         draw_card_3d(fb, g_sprites["txt_give_users"],
-                     0.53f, 0.50f - (1.0f - p_txt)*0.08f, 0.0f,
-                     0.135f * p_txt, 0.0f, 0.0f, 0.0f, env, false, false);
+                     0.53f, 0.48f - (1.0f - p_txt)*0.10f - 0.22f * s.exit_u, 0.0f,
+                     0.142f * p_txt * (1.0f + 0.18f * s.exit_u), 0.0f, 0.0f, 0.0f, s.env, false, false);
 
-        float p_st = spring_pop(tl, 0.05f, 0.50f, 10.0f, 4.2f);
-        draw_star_4pt(fb, 0.175f, 0.50f, 0.062f * p_st, 0.062f * p_st,
-                      (1.0f - p_st) * 120.0f, white, purple_glow, false, 0.08f, env);
+        float p_st = spring_pop(s.tl, 0.04f, 0.45f);
+        draw_star_4pt(fb, 0.175f, 0.48f - 0.22f * s.exit_u, 0.066f * p_st, 0.066f * p_st,
+                      (1.0f - p_st) * 120.0f + s.tl * 25.0f, white, purple_glow, false, 0.08f, s.env);
     }
 
     // ========================================================================
-    // SCENE 3 (8.3s - 15.1s): "and share ideas" + 3D Tilted Feedback Portal Screen
+    // SHOT 04 (8.8s - 11.8s): Isometric 3D Feedback Portal + Foreground New Idea Modal
     // ========================================================================
-    if (t >= 8.3f && t < 15.1f) {
-        float tl = t - 8.4f;
-        float env = smoothstep(8.3f, 8.7f, t) * (1.0f - smoothstep(14.65f, 15.05f, t));
+    if (auto s = eval_shot(t, 8.8f, 11.8f); s.active) {
+        draw_orbital_arc(fb, 0.50f, 0.66f, 0.56f, 0.45f, 1.0f, s.env * 0.90f);
 
-        // Glowing purple orbital horizon arc above the 3D tilted screen
-        draw_orbital_arc(fb, 0.50f, 0.68f, 0.55f, 0.44f, clampf(0.3f + tl * 0.4f, 0.0f, 1.0f), env * 0.95f);
-
-        // Headline "and share ideas" at top (hero-sized matching Zelios frame!)
-        float p_head = spring_pop(tl, 0.10f, 0.55f, 9.0f, 4.6f);
+        float p_head = spring_pop(s.tl, 0.06f, 0.46f);
         draw_card_3d(fb, g_sprites["txt_share_ideas"],
-                     0.50f, 0.175f, 0.0f,
-                     0.145f * p_head, 0.0f, 0.0f, 0.0f, env, false, false);
+                     0.50f - 0.30f * s.exit_u, 0.16f, 0.0f,
+                     0.145f * p_head, 0.0f, 0.0f, 0.0f, s.env, false, false);
 
-        // 3D Tilted Tablet/Laptop Screen rising into perspective (pitch = -34 deg -> -26 deg)
-        float p_scr = spring_pop(tl, 0.18f, 0.75f, 7.5f, 4.8f);
-        float pitch = -35.0f + 9.0f * ease_in_out_cubic(tl / 6.5f);
-        float yaw   = -2.5f + 5.0f * std::sin(tl * 0.7f);
-        float scr_y = 0.77f + (1.0f - p_scr) * 0.35f;
+        float p_scr = spring_pop(s.tl, 0.12f, 0.58f, 8.0f, 4.8f);
+        float pitch = -30.0f + 8.0f * ease_in_out_cubic(s.tl / 2.8f) + 14.0f * s.exit_u;
+        float yaw   = 14.0f - 8.0f * (s.tl / 2.8f) - 22.0f * s.exit_u;
+        float scr_y = 0.72f + (1.0f - p_scr) * 0.28f;
 
         CardEffect fx;
         fx.highlight_pulse = true;
-        fx.bottom_shadow_fade = 0.72f;
-        // Upvote pulse travels down the posts on the 3D screen
-        int post_idx = ((int)(tl * 0.9f)) % 3;
-        fx.pulse_u = 0.85f;
-        fx.pulse_v = 0.56f + post_idx * 0.14f;
-        float sub_t = std::fmod(tl * 0.9f, 1.0f);
+        fx.bottom_shadow_fade = 0.65f;
+        fx.glass_sheen_pos = s.sheen;
+        fx.glass_sheen_strength = 0.24f;
+        fx.pulse_u = 0.85f; fx.pulse_v = 0.56f;
+        float sub_t = std::fmod(s.tl * 1.2f, 1.0f);
         fx.pulse_r = sub_t * 0.16f;
-        fx.pulse_alpha = (1.0f - sub_t) * 0.85f;
+        fx.pulse_alpha = (1.0f - sub_t) * 0.88f;
 
         draw_card_3d(fb, g_sprites["ui_portal_main"],
-                     0.50f, scr_y, 0.04f,
-                     0.64f * p_scr, pitch, yaw, 0.0f, env, true, true, &fx);
+                     0.46f - 0.25f * s.exit_u, scr_y, 0.05f,
+                     0.60f * p_scr, pitch, yaw, -1.5f, s.env, true, true, &fx);
 
-        // Left mid-ground 4-point purple star ✦
-        draw_star_4pt(fb, 0.085f, 0.65f + 0.02f*std::sin(tl*2.2f), 0.032f*p_scr, 0.032f*p_scr,
-                      tl*20.0f, violet_col, purple_glow, false, 0.08f, env);
+        // Foreground Floating 3D Glass Composer Widget ("✦ NEW IDEA: Dark mode for public boards")
+        if (s.tl > 0.45f) {
+            float p_w = spring_pop(s.tl, 0.48f, 0.50f);
+            CardEffect fx_w;
+            fx_w.glass_sheen_pos = s.sheen * 1.1f;
+            fx_w.glass_sheen_strength = 0.28f;
+            draw_card_3d(fb, g_sprites["widget_new_post"],
+                         0.74f + 0.25f * s.exit_u, 0.66f - 0.02f * std::sin(s.tl * 3.0f), -0.14f,
+                         0.23f * p_w, 6.0f, -16.0f, 1.5f, s.env, true, true, &fx_w);
+        }
 
-        // Large Foreground Depth-of-Field Blurred 3D 4-Point Star on Bottom-Right (signature Zelios shot!)
-        draw_star_4pt(fb, 0.92f - 0.02f*std::sin(tl*1.5f), 0.83f + 0.02f*std::cos(tl*1.5f),
-                      0.26f * p_scr, 0.26f * p_scr, -12.0f + tl * 4.0f,
-                      white, purple_glow, true, 0.11f, env * 0.95f);
+        draw_star_4pt(fb, 0.91f, 0.82f, 0.22f * p_scr, 0.22f * p_scr, -10.0f + s.tl * 8.0f,
+                      white, purple_glow, true, 0.10f, s.env * 0.92f);
     }
 
     // ========================================================================
-    // SCENE 4 (14.8s - 22.0s): "Collect feedback" + Dual 3D Tilted UI Cards
+    // SHOT 05 (11.8s - 14.8s): 3D Macro Close-Up — Live Upvote Shockwave ("Capture every customer vote")
     // ========================================================================
-    if (t >= 14.8f && t < 22.1f) {
-        float tl = t - 15.0f;
-        float env = smoothstep(14.8f, 15.2f, t) * (1.0f - smoothstep(21.6f, 22.0f, t));
+    if (auto s = eval_shot(t, 11.8f, 14.8f); s.active) {
+        float p_txt = spring_pop(s.tl, 0.05f, 0.45f);
+        draw_card_3d(fb, g_sprites["txt_upvote_live"],
+                     0.50f, 0.15f - 0.15f * s.exit_u, 0.0f,
+                     0.135f * p_txt, 0.0f, 0.0f, 0.0f, s.env, false, false);
 
-        // Headline "Collect feedback" at top (hero-sized matching Zelios frame 1:1!)
-        float p_txt = spring_pop(tl, 0.05f, 0.55f, 9.2f, 4.6f);
-        draw_card_3d(fb, g_sprites["txt_collect_feedback"],
-                     0.50f, 0.22f, 0.0f,
-                     0.155f * p_txt, 0.0f, 0.0f, 0.0f, env, false, false);
-
-        // Left 3D Card ("Feature Requests / Bug Fixes / Collect feedback from Slack ▲ 786")
-        float p_left = spring_pop(tl, 0.18f, 0.70f, 8.0f, 4.8f);
-        float left_yaw = 24.0f - 4.0f * std::sin(tl * 0.8f);
-        float left_pitch = 6.0f + 2.0f * std::cos(tl * 0.7f);
-
-        CardEffect fx_left;
-        fx_left.highlight_pulse = true;
-        fx_left.bottom_shadow_fade = 0.55f;
-        fx_left.pulse_u = 0.115f;
-        fx_left.pulse_v = 0.285f; // Upvote box ▲ 786
-        float up_t = std::fmod(std::max(0.0f, tl - 0.8f) * 0.85f, 1.0f);
-        fx_left.pulse_r = up_t * 0.18f;
-        fx_left.pulse_alpha = (1.0f - up_t) * 0.9f;
+        // Hero Macro 3D Feature Requests Card tilted dramatically
+        float p_card = spring_pop(s.tl, 0.10f, 0.52f);
+        float yaw = -18.0f + 6.0f * (s.tl / 2.8f) + 25.0f * s.exit_u;
+        float pitch = 10.0f - 4.0f * (s.tl / 2.8f);
+        CardEffect fx_c;
+        fx_c.highlight_pulse = true;
+        fx_c.glass_sheen_pos = s.sheen;
+        fx_c.glass_sheen_strength = 0.25f;
+        fx_c.pulse_u = 0.115f; fx_c.pulse_v = 0.285f;
+        float up_t = clampf((s.tl - 0.75f) / 0.85f, 0.0f, 1.0f);
+        fx_c.pulse_r = up_t * 0.22f;
+        fx_c.pulse_alpha = (1.0f - up_t) * 0.95f;
 
         draw_card_3d(fb, g_sprites["ui_card_feature_requests"],
-                     0.31f - (1.0f - p_left)*0.15f, 0.79f + (1.0f - p_left)*0.20f, 0.04f,
-                     0.50f * p_left, left_pitch, left_yaw, -4.5f, env, true, true, &fx_left);
+                     0.38f - 0.25f * s.exit_u, 0.66f, 0.02f,
+                     0.52f * p_card, pitch, yaw, -2.5f, s.env, true, true, &fx_c);
 
-        // Right 3D Card ("Roadmap: Public | Q1 Roadmap | Q2 Roadmap")
-        float p_right = spring_pop(tl, 0.30f, 0.70f, 8.0f, 4.8f);
-        float right_yaw = -19.0f + 4.0f * std::cos(tl * 0.8f);
-        float right_pitch = 5.0f - 2.0f * std::sin(tl * 0.7f);
+        // Pop-out Foreground 3D Upvote Burst Widget ("▲ 787 • +142 votes this week 🔥")
+        if (s.tl > 0.65f) {
+            float p_ub = spring_pop(s.tl, 0.68f, 0.45f, 10.0f, 4.4f);
+            CardEffect fx_ub;
+            fx_ub.glass_sheen_pos = s.sheen;
+            fx_ub.glass_sheen_strength = 0.26f;
+            draw_card_3d(fb, g_sprites["widget_upvote_burst"],
+                         0.72f + 0.25f * s.exit_u, 0.54f, -0.15f,
+                         0.21f * p_ub, 4.0f, -15.0f, 1.5f, s.env, true, true, &fx_ub);
+        }
 
-        CardEffect fx_right;
-        fx_right.right_shadow_fade = 0.92f; // Signature right-side atmospheric shadow fade from Zelios frame!
-        fx_right.bottom_shadow_fade = 0.45f;
+        // Floating Slack & Gmail pills in foreground parallax
+        float p_pl = spring_pop(s.tl, 0.35f, 0.45f);
+        draw_card_3d(fb, g_sprites["pill_slack_warm"],
+                     0.75f + 0.20f * s.exit_u, 0.80f, -0.10f,
+                     0.076f * p_pl, 0.0f, -12.0f, 2.0f, s.env, true, false);
+
+        // Cursor clicking the upvote box at tl = 0.75s
+        float cur_u = ease_out_cubic(s.tl / 0.75f);
+        float cx_c = 0.16f + 0.11f * cur_u;
+        float cy_c = 0.78f - 0.22f * cur_u;
+        float burst = (s.tl > 0.72f && s.tl < 1.45f) ? (s.tl - 0.72f) / 0.73f : -1.0f;
+        draw_cursor_and_click(fb, cx_c, cy_c, burst, s.env);
+
+        draw_star_4pt(fb, 0.10f, 0.30f, 0.040f*p_card, 0.040f*p_card, s.tl*40.0f, gold_col, gold_col, false, 0.08f, s.env);
+        draw_star_4pt(fb, 0.89f, 0.26f, 0.045f*p_card, 0.045f*p_card, -s.tl*35.0f, pink_glow, purple_glow, false, 0.08f, s.env);
+    }
+
+    // ========================================================================
+    // SHOT 06 (14.8s - 17.8s): 3D Stage-Manager Fan-Out — "Collect feedback"
+    // ========================================================================
+    if (auto s = eval_shot(t, 14.8f, 17.8f); s.active) {
+        float p_txt = spring_pop(s.tl, 0.04f, 0.45f);
+        draw_card_3d(fb, g_sprites["txt_collect_feedback"],
+                     0.50f, 0.19f - 0.16f * s.exit_u, 0.0f,
+                     0.155f * p_txt, 0.0f, 0.0f, 0.0f, s.env, false, false);
+
+        float p_left  = spring_pop(s.tl, 0.12f, 0.55f);
+        float p_right = spring_pop(s.tl, 0.22f, 0.55f);
+
+        CardEffect fx_l;
+        fx_l.bottom_shadow_fade = 0.50f;
+        fx_l.glass_sheen_pos = s.sheen;
+        fx_l.glass_sheen_strength = 0.22f;
+        draw_card_3d(fb, g_sprites["ui_card_feature_requests"],
+                     0.30f - 0.28f * s.exit_u, 0.76f, 0.04f,
+                     0.49f * p_left, 6.0f, 23.0f + 12.0f * s.exit_u, -4.0f, s.env, true, true, &fx_l);
+
+        CardEffect fx_r;
+        fx_r.right_shadow_fade = 0.88f;
+        fx_r.bottom_shadow_fade = 0.42f;
+        fx_r.glass_sheen_pos = s.sheen;
+        fx_r.glass_sheen_strength = 0.22f;
         draw_card_3d(fb, g_sprites["ui_card_roadmap_public"],
-                     0.67f + (1.0f - p_right)*0.15f, 0.78f + (1.0f - p_right)*0.20f, 0.02f,
-                     0.52f * p_right, right_pitch, right_yaw, 2.5f, env, true, true, &fx_right);
+                     0.68f + 0.28f * s.exit_u, 0.75f, 0.02f,
+                     0.51f * p_right, 5.0f, -19.0f - 12.0f * s.exit_u, 2.5f, s.env, true, true, &fx_r);
 
-        // Animated Cursor clicking the ▲ 786 Upvote button on the Left 3D Card
-        if (tl > 0.6f && tl < 4.5f) {
-            float ct = clampf((tl - 0.6f) / 1.1f, 0.0f, 1.0f);
-            float cx_c = 0.10f + 0.095f * ease_out_cubic(ct);
-            float cy_c = 0.88f - 0.21f  * ease_out_cubic(ct);
-            float burst = (tl > 1.7f && tl < 2.4f) ? (tl - 1.7f) / 0.7f : -1.0f;
-            draw_cursor_and_click(fb, cx_c, cy_c, burst, env);
-        }
+        draw_star_4pt(fb, 0.11f, 0.25f, 0.036f*p_left, 0.036f*p_left, s.tl*40.0f, teal_col, teal_col, false, 0.08f, s.env);
+        draw_star_4pt(fb, 0.88f, 0.24f, 0.042f*p_right, 0.042f*p_right, -s.tl*40.0f, gold_col, gold_col, false, 0.08f, s.env);
     }
 
     // ========================================================================
-    // SCENE 5 (21.8s - 28.5s): "Merge duplicates & vote on behalf" (Light Canvas)
+    // SHOT 07 (17.8s - 20.8s): Pearl-White Studio — "Merge duplicates" 3D Card Fusion
     // ========================================================================
-    if (t >= 21.8f && t < 28.6f) {
-        float tl = t - 22.0f;
-        float env = smoothstep(21.8f, 22.25f, t) * (1.0f - smoothstep(28.1f, 28.5f, t));
-
-        float p_txt = spring_pop(tl, 0.05f, 0.55f);
+    if (auto s = eval_shot(t, 17.8f, 20.8f); s.active) {
+        float p_txt = spring_pop(s.tl, 0.04f, 0.45f);
         draw_card_3d(fb, g_sprites["txt_merge_duplicates"],
-                     0.50f, 0.15f, 0.0f,
-                     0.125f * p_txt, 0, 0, 0, env, false, false);
+                     0.50f, 0.14f, 0.0f,
+                     0.128f * p_txt, 0, 0, 0, s.env, false, false);
 
-        // Card 1: Merge duplicate posts (slides from center to left as Card 2 enters)
-        float split = ease_in_out_cubic((tl - 2.2f) / 1.2f);
-        float p_c1 = spring_pop(tl, 0.15f, 0.65f);
+        float p_c1 = spring_pop(s.tl, 0.12f, 0.55f);
         CardEffect fx_m;
-        fx_m.highlight_pulse = (tl > 1.2f && tl < 2.8f);
-        fx_m.pulse_u = 0.885f; fx_m.pulse_v = 0.585f; // "+ Merge" button
-        fx_m.pulse_r = clampf((tl - 1.2f) * 0.18f, 0.0f, 0.22f);
-        fx_m.pulse_alpha = clampf(1.0f - (tl - 1.2f)*0.7f, 0.0f, 1.0f);
+        fx_m.highlight_pulse = (s.tl > 0.8f);
+        fx_m.glass_sheen_pos = s.sheen;
+        fx_m.glass_sheen_strength = 0.22f;
+        fx_m.pulse_u = 0.885f; fx_m.pulse_v = 0.585f;
+        fx_m.pulse_r = clampf((s.tl - 0.8f) * 0.20f, 0.0f, 0.24f);
+        fx_m.pulse_alpha = clampf(1.0f - (s.tl - 0.8f)*0.65f, 0.0f, 1.0f);
 
+        // Main Merge Post 3D card in dynamic perspective
         draw_card_3d(fb, g_sprites["ui_card_merge_posts"],
-                     0.50f - 0.20f * split, 0.58f, 0.04f * split,
-                     (0.46f - 0.06f * split) * p_c1,
-                     4.0f, 14.0f * split, 0.0f, env, true, true, &fx_m);
+                     0.46f - 0.22f * s.exit_u, 0.59f, 0.0f,
+                     0.47f * p_c1,
+                     5.0f, 14.0f - 8.0f * (s.tl / 2.8f), -1.0f, s.env, true, true, &fx_m);
 
-        // Card 2: Add Vote on Behalf (pops in on the right in 3D perspective)
-        if (tl > 2.0f) {
-            float p_c2 = spring_pop(tl, 2.1f, 0.65f);
-            CardEffect fx_v;
-            fx_v.highlight_pulse = (tl > 3.6f);
-            fx_v.pulse_u = 0.605f; fx_v.pulse_v = 0.91f; // "Add Vote" button
-            fx_v.pulse_r = clampf((tl - 3.6f) * 0.18f, 0.0f, 0.22f);
-            fx_v.pulse_alpha = clampf(1.0f - (tl - 3.6f)*0.7f, 0.0f, 1.0f);
-
-            draw_card_3d(fb, g_sprites["ui_card_vote_behalf"],
-                         0.71f, 0.60f, -0.06f,
-                         0.41f * p_c2,
-                         3.0f, -15.0f, 0.0f, env, true, true, &fx_v);
+        // Secondary duplicate card sliding into the main card to visualize merging!
+        float merge_u = ease_in_out_cubic(s.tl / 1.4f);
+        float dup_op = s.env * (1.0f - smoothstep(1.0f, 1.5f, s.tl));
+        if (dup_op > 1e-3f) {
+            draw_card_3d(fb, g_sprites["widget_upvote_burst"],
+                         0.82f - 0.24f * merge_u, 0.58f, -0.10f,
+                         0.20f * (1.0f - 0.25f * merge_u),
+                         4.0f, -18.0f, 3.0f, dup_op, true, true);
         }
 
-        // Animated Cursor clicking "+ Merge" then moving to "Add Vote"
-        float cur_x = 0.68f, cur_y = 0.62f, burst = -1.0f;
-        if (tl < 2.2f) {
-            float u = ease_out_cubic(tl / 1.1f);
-            cur_x = 0.45f + 0.28f * u;
-            cur_y = 0.80f - 0.18f * u;
-            if (tl > 1.15f && tl < 1.85f) burst = (tl - 1.15f) / 0.7f;
-        } else {
-            float u = ease_in_out_cubic((tl - 2.2f) / 1.3f);
-            cur_x = 0.73f + 0.02f * u;
-            cur_y = 0.62f + 0.25f * u;
-            if (tl > 3.55f && tl < 4.25f) burst = (tl - 3.55f) / 0.7f;
-        }
-        draw_cursor_and_click(fb, cur_x, cur_y, burst, env);
+        // Cursor clicking "+ Merge" at tl = 0.9s
+        float cur_u = ease_out_cubic(s.tl / 0.85f);
+        float cx_c = 0.44f + 0.24f * cur_u;
+        float cy_c = 0.78f - 0.16f * cur_u;
+        float burst = (s.tl > 0.85f && s.tl < 1.55f) ? (s.tl - 0.85f) / 0.7f : -1.0f;
+        draw_cursor_and_click(fb, cx_c, cy_c, burst, s.env);
 
-        draw_star_4pt(fb, 0.09f, 0.24f, 0.036f*p_txt, 0.036f*p_txt, tl*35.0f, violet_col, purple_glow, false, 0.08f, env);
-        draw_star_4pt(fb, 0.91f, 0.22f, 0.030f*p_txt, 0.030f*p_txt, -tl*40.0f, pink_glow, pink_glow, false, 0.08f, env);
+        draw_star_4pt(fb, 0.09f, 0.26f, 0.038f*p_c1, 0.038f*p_c1, s.tl*40.0f, violet_col, purple_glow, false, 0.08f, s.env);
+        draw_star_4pt(fb, 0.90f, 0.24f, 0.034f*p_c1, 0.034f*p_c1, -s.tl*45.0f, pink_glow, pink_glow, false, 0.08f, s.env);
     }
 
     // ========================================================================
-    // SCENE 6 (28.3s - 35.5s): "Prioritize what to build next" (Q2 Table + Value vs Effort)
+    // SHOT 08 (20.8s - 23.8s): 3D Elevated Modal — "Vote on behalf of VIP users"
     // ========================================================================
-    if (t >= 28.3f && t < 35.6f) {
-        float tl = t - 28.5f;
-        float env = smoothstep(28.3f, 28.7f, t) * (1.0f - smoothstep(35.1f, 35.5f, t));
+    if (auto s = eval_shot(t, 20.8f, 23.8f); s.active) {
+        float p_txt = spring_pop(s.tl, 0.04f, 0.45f);
+        draw_card_3d(fb, g_sprites["txt_vote_behalf_hdr"],
+                     0.50f, 0.14f, 0.0f,
+                     0.132f * p_txt, 0, 0, 0, s.env, false, false);
 
-        float p_txt = spring_pop(tl, 0.05f, 0.55f);
+        // Background blurred/angled Merge Posts card for multi-layer depth
+        float p_bg = spring_pop(s.tl, 0.08f, 0.50f);
+        draw_card_3d(fb, g_sprites["ui_card_merge_posts"],
+                     0.26f - 0.20f * s.exit_u, 0.58f, 0.08f,
+                     0.38f * p_bg, 5.0f, 18.0f, -2.0f, s.env * 0.85f, true, true);
+
+        // Hero Foreground 3D Card: Add Vote on Behalf
+        float p_fg = spring_pop(s.tl, 0.14f, 0.52f);
+        CardEffect fx_v;
+        fx_v.highlight_pulse = (s.tl > 0.9f);
+        fx_v.glass_sheen_pos = s.sheen;
+        fx_v.glass_sheen_strength = 0.25f;
+        fx_v.pulse_u = 0.605f; fx_v.pulse_v = 0.91f;
+        fx_v.pulse_r = clampf((s.tl - 0.9f) * 0.20f, 0.0f, 0.24f);
+        fx_v.pulse_alpha = clampf(1.0f - (s.tl - 0.9f)*0.65f, 0.0f, 1.0f);
+
+        draw_card_3d(fb, g_sprites["ui_card_vote_behalf"],
+                     0.64f + 0.22f * s.exit_u, 0.60f, -0.08f,
+                     0.46f * p_fg, 4.0f, -15.0f + 5.0f * (s.tl / 2.8f), 1.0f, s.env, true, true, &fx_v);
+
+        float cur_u = ease_out_cubic(s.tl / 0.85f);
+        float cx_c = 0.52f + 0.15f * cur_u;
+        float cy_c = 0.64f + 0.23f * cur_u;
+        float burst = (s.tl > 0.88f && s.tl < 1.58f) ? (s.tl - 0.88f) / 0.7f : -1.0f;
+        draw_cursor_and_click(fb, cx_c, cy_c, burst, s.env);
+
+        draw_star_4pt(fb, 0.88f, 0.22f, 0.042f*p_fg, 0.042f*p_fg, s.tl*40.0f, gold_col, gold_col, false, 0.08f, s.env);
+    }
+
+    // ========================================================================
+    // SHOT 09 (23.8s - 26.8s): Dark-Field Custom Statuses & Workflows
+    // ========================================================================
+    if (auto s = eval_shot(t, 23.8f, 26.8f); s.active) {
+        float p_txt = spring_pop(s.tl, 0.04f, 0.45f);
+        draw_card_3d(fb, g_sprites["txt_custom_statuses"],
+                     0.50f, 0.15f, 0.0f,
+                     0.132f * p_txt, 0, 0, 0, s.env, false, false);
+
+        float p_cs = spring_pop(s.tl, 0.12f, 0.55f);
+        CardEffect fx_cs;
+        fx_cs.glass_sheen_pos = s.sheen;
+        fx_cs.glass_sheen_strength = 0.26f;
+        draw_card_3d(fb, g_sprites["ui_custom_statuses"],
+                     0.48f - 0.22f * s.exit_u, 0.60f, 0.0f,
+                     0.47f * p_cs,
+                     6.0f - 3.0f * (s.tl / 2.8f), 14.0f - 10.0f * (s.tl / 2.8f), -1.0f,
+                     s.env, true, true, &fx_cs);
+
+        // Floating multi-channel pills & avatar in foreground Z-parallax
+        float p_w = spring_pop(s.tl, 0.30f, 0.48f);
+        draw_card_3d(fb, g_sprites["pill_slack_teal"],
+                     0.78f + 0.20f * s.exit_u, 0.46f, -0.12f,
+                     0.076f * p_w, 0, -14.0f, 2.0f, s.env, true, false);
+        draw_card_3d(fb, g_sprites["pill_gmail_pink"],
+                     0.76f + 0.20f * s.exit_u, 0.68f, -0.14f,
+                     0.076f * p_w, 0, -14.0f, -2.0f, s.env, true, false);
+
+        draw_star_4pt(fb, 0.10f, 0.36f, 0.040f*p_cs, 0.040f*p_cs, s.tl*45.0f, teal_col, teal_col, false, 0.08f, s.env);
+        draw_star_4pt(fb, 0.90f, 0.26f, 0.044f*p_cs, 0.044f*p_cs, -s.tl*35.0f, pink_glow, purple_glow, false, 0.08f, s.env);
+    }
+
+    // ========================================================================
+    // SHOT 10 (26.8s - 29.8s): Prioritize Matrix — Q2 Roadmap 5-Star Table + R.I.C.E. Widget
+    // ========================================================================
+    if (auto s = eval_shot(t, 26.8f, 29.8f); s.active) {
+        float p_txt = spring_pop(s.tl, 0.04f, 0.45f);
         draw_card_3d(fb, g_sprites["txt_prioritize"],
                      0.50f, 0.15f, 0.0f,
-                     0.130f * p_txt, 0, 0, 0, env, false, false);
+                     0.135f * p_txt, 0, 0, 0, s.env, false, false);
 
-        // Background 3D Card: Q2 Roadmap Prioritization Table (POST, ASSIGNEE, IMPACT, DEV EFFORT, SCORE 750)
-        float p_tbl = spring_pop(tl, 0.15f, 0.70f);
-        float tbl_shift = ease_in_out_cubic((tl - 2.0f) / 1.4f);
+        float p_tbl = spring_pop(s.tl, 0.12f, 0.55f);
+        CardEffect fx_t;
+        fx_t.glass_sheen_pos = s.sheen;
+        fx_t.glass_sheen_strength = 0.25f;
         draw_card_3d(fb, g_sprites["ui_card_priority_table"],
-                     0.50f - 0.12f * tbl_shift, 0.60f, 0.06f * tbl_shift,
-                     0.46f * p_tbl,
-                     6.0f - 2.0f * tbl_shift, 10.0f * tbl_shift, 0.0f, env, true, true);
+                     0.43f - 0.20f * s.exit_u, 0.61f, 0.04f,
+                     0.47f * p_tbl,
+                     6.0f, 14.0f - 6.0f * (s.tl / 2.8f), -1.0f, s.env, true, true, &fx_t);
 
-        // Foreground 3D Pop-Over Card: "Value vs Effort" (Impact 4★, Design Effort 2★, Dev Effort 4★, Score 600)
-        if (tl > 1.8f) {
-            float p_mod = spring_pop(tl, 1.85f, 0.65f, 9.0f, 4.5f);
-            CardEffect fx_ve;
-            fx_ve.highlight_pulse = (tl > 3.2f);
-            fx_ve.pulse_u = 0.46f; fx_ve.pulse_v = 0.90f; // Score 600 pill
-            fx_ve.pulse_r = clampf((tl - 3.2f) * 0.18f, 0.0f, 0.22f);
-            fx_ve.pulse_alpha = clampf(1.0f - (tl - 3.2f)*0.6f, 0.0f, 1.0f);
-
-            draw_card_3d(fb, g_sprites["ui_card_value_effort"],
-                         0.71f, 0.62f, -0.14f,
-                         0.38f * p_mod,
-                         4.0f, -14.0f, 1.5f, env, true, true, &fx_ve);
+        // Foreground R.I.C.E. Score 750 Pop-out Widget
+        if (s.tl > 0.35f) {
+            float p_rc = spring_pop(s.tl, 0.38f, 0.48f);
+            CardEffect fx_rc;
+            fx_rc.glass_sheen_pos = s.sheen;
+            fx_rc.glass_sheen_strength = 0.28f;
+            draw_card_3d(fb, g_sprites["widget_rice_score"],
+                         0.75f + 0.22f * s.exit_u, 0.58f, -0.14f,
+                         0.21f * p_rc, 4.0f, -16.0f, 2.0f, s.env, true, true, &fx_rc);
         }
 
-        draw_star_4pt(fb, 0.09f, 0.42f, 0.040f*p_tbl, 0.040f*p_tbl, tl*30.0f, gold_col, gold_col, false, 0.08f, env);
-        draw_star_4pt(fb, 0.91f, 0.26f, 0.046f*p_tbl, 0.046f*p_tbl, -tl*25.0f, white, pink_glow, false, 0.08f, env);
+        draw_star_4pt(fb, 0.09f, 0.42f, 0.042f*p_tbl, 0.042f*p_tbl, s.tl*40.0f, gold_col, gold_col, false, 0.08f, s.env);
+        draw_star_4pt(fb, 0.91f, 0.26f, 0.046f*p_tbl, 0.046f*p_tbl, -s.tl*35.0f, white, pink_glow, false, 0.08f, s.env);
     }
 
     // ========================================================================
-    // SCENE 7 (35.3s - 42.0s): "Public Roadmap" Kanban Board + Animated Card Drag + 4 Avatars
+    // SHOT 11 (29.8s - 32.8s): Interactive 3D Value vs. Effort Calculator ("Score impact vs. effort")
     // ========================================================================
-    if (t >= 35.3f && t < 42.1f) {
-        float tl = t - 35.5f;
-        float env = smoothstep(35.3f, 35.7f, t) * (1.0f - smoothstep(41.6f, 42.0f, t));
+    if (auto s = eval_shot(t, 29.8f, 32.8f); s.active) {
+        float p_txt = spring_pop(s.tl, 0.04f, 0.45f);
+        draw_card_3d(fb, g_sprites["txt_value_effort"],
+                     0.50f, 0.15f, 0.0f,
+                     0.132f * p_txt, 0, 0, 0, s.env, false, false);
 
-        // Large background 3D outline 4-point star on top-right (matching Zelios styleframe 1:1!)
-        draw_star_4pt(fb, 0.82f, 0.20f, 0.22f, 0.22f, 16.0f + tl*3.0f,
-                      white, purple_glow, true, 0.085f, env * 0.85f);
-        draw_star_4pt(fb, 0.27f, 0.16f, 0.028f, 0.028f, -tl*20.0f,
-                      purple_glow, purple_glow, false, 0.08f, env * 0.65f);
+        // Background tilted Priority Table
+        float p_bg = spring_pop(s.tl, 0.08f, 0.50f);
+        draw_card_3d(fb, g_sprites["ui_card_priority_table"],
+                     0.31f - 0.22f * s.exit_u, 0.61f, 0.08f,
+                     0.42f * p_bg, 5.0f, 16.0f, -1.5f, s.env * 0.85f, true, true);
 
-        // Headline "Public Roadmap" at top
-        float p_txt = spring_pop(tl, 0.05f, 0.55f);
+        // Foreground Hero 3D Card: Value vs Effort with Score 600 pulse
+        float p_mod = spring_pop(s.tl, 0.14f, 0.52f);
+        CardEffect fx_ve;
+        fx_ve.highlight_pulse = (s.tl > 0.7f);
+        fx_ve.glass_sheen_pos = s.sheen;
+        fx_ve.glass_sheen_strength = 0.26f;
+        fx_ve.pulse_u = 0.46f; fx_ve.pulse_v = 0.90f;
+        fx_ve.pulse_r = clampf((s.tl - 0.7f) * 0.20f, 0.0f, 0.24f);
+        fx_ve.pulse_alpha = clampf(1.0f - (s.tl - 0.7f)*0.6f, 0.0f, 1.0f);
+
+        draw_card_3d(fb, g_sprites["ui_card_value_effort"],
+                     0.67f + 0.22f * s.exit_u, 0.61f, -0.12f,
+                     0.43f * p_mod, 4.0f, -15.0f + 5.0f * (s.tl / 2.8f), 1.5f, s.env, true, true, &fx_ve);
+
+        float cur_u = ease_out_cubic(s.tl / 0.8f);
+        float cx_c = 0.55f + 0.10f * cur_u;
+        float cy_c = 0.55f + 0.28f * cur_u;
+        float burst = (s.tl > 0.78f && s.tl < 1.48f) ? (s.tl - 0.78f) / 0.7f : -1.0f;
+        draw_cursor_and_click(fb, cx_c, cy_c, burst, s.env);
+
+        draw_star_4pt(fb, 0.08f, 0.34f, 0.042f*p_mod, 0.042f*p_mod, s.tl*45.0f, gold_col, gold_col, false, 0.08f, s.env);
+    }
+
+    // ========================================================================
+    // SHOT 12 (32.8s - 35.8s): Public Roadmap 3D Kanban Overview + 4 Customer Avatars
+    // ========================================================================
+    if (auto s = eval_shot(t, 32.8f, 35.8f); s.active) {
+        draw_star_4pt(fb, 0.82f, 0.20f, 0.22f, 0.22f, 16.0f + s.tl*6.0f,
+                      white, purple_glow, true, 0.085f, s.env * 0.88f);
+        draw_star_4pt(fb, 0.27f, 0.16f, 0.028f, 0.028f, -s.tl*30.0f,
+                      purple_glow, purple_glow, false, 0.08f, s.env * 0.70f);
+
+        float p_txt = spring_pop(s.tl, 0.04f, 0.45f);
         draw_card_3d(fb, g_sprites["txt_public_roadmap"],
                      0.46f, 0.14f, 0.0f,
-                     0.125f * p_txt, 0, 0, 0, env, false, false);
+                     0.130f * p_txt, 0, 0, 0, s.env, false, false);
 
-        // Kanban Board Base ("Planned | In Progress | Completed") — hero-sized matching Zelios styleframe!
-        float p_kb = spring_pop(tl, 0.12f, 0.65f, 8.5f, 4.8f);
+        float p_kb = spring_pop(s.tl, 0.10f, 0.55f);
+        CardEffect fx_kb;
+        fx_kb.glass_sheen_pos = s.sheen;
+        fx_kb.glass_sheen_strength = 0.18f;
         draw_card_3d(fb, g_sprites["ui_kanban_board"],
-                     0.51f, 0.68f, 0.04f,
-                     0.52f * p_kb, 2.0f, 0.0f, 0.0f, env, true, false);
+                     0.51f, 0.67f, 0.04f,
+                     0.52f * p_kb * (1.0f + 0.14f * s.exit_u),
+                     4.0f - 8.0f * s.exit_u, 4.0f * std::sin(s.tl * 1.2f), 0.0f, s.env, true, true, &fx_kb);
 
-        // Movable Kanban Card: starts in "In Progress" (slot 3), lifts up in 3D, arcs over to "Completed" (slot 3)!
-        float drag_u = ease_in_out_cubic((tl - 1.2f) / 1.8f);
-        float lift = std::sin(drag_u * PI);
-        float card_x = 0.51f + 0.265f * drag_u;
-        float card_y = 0.74f - 0.06f * lift;
-        float card_z = 0.02f - 0.18f * lift;
-        float card_roll = -8.0f * std::sin(drag_u * PI * 2.0f);
         draw_card_3d(fb, g_sprites["ui_kanban_movable_card"],
-                     card_x, card_y, card_z,
-                     (0.082f + 0.010f * lift) * p_kb,
-                     0.0f, 0.0f, card_roll, env, true, false);
+                     0.51f, 0.73f, 0.01f, 0.082f * p_kb, 0, 0, 0, s.env, true, false);
 
-        // 4 3D Customer Avatars popping in around the Kanban board (matching Zelios styleframe 1:1!)
-        float pa1 = spring_pop(tl, 0.35f, 0.55f);
-        float pa2 = spring_pop(tl, 0.50f, 0.55f);
-        float pa3 = spring_pop(tl, 0.65f, 0.55f);
-        float pa4 = spring_pop(tl, 0.80f, 0.55f);
-        float b1 = 0.007f * std::sin(tl * 3.5f);
-        // Top-left Adidas cap avatar overlapping board corner
+        float pa1 = spring_pop(s.tl, 0.22f, 0.48f);
+        float pa2 = spring_pop(s.tl, 0.32f, 0.48f);
+        float pa3 = spring_pop(s.tl, 0.42f, 0.48f);
+        float pa4 = spring_pop(s.tl, 0.52f, 0.48f);
+        float b1 = 0.008f * std::sin(s.tl * 4.0f);
         draw_card_3d(fb, g_sprites["av_adidas_cap"],
-                     0.135f, 0.44f + b1, -0.06f, 0.125f * pa1, 0, 0, -4.0f, env, true, false);
-        // Bottom-left Curly boy avatar + 2 small purple stars ✦✦
+                     0.135f, 0.44f + b1, -0.06f, 0.128f * pa1, 0, 0, -4.0f, s.env, true, false);
         draw_card_3d(fb, g_sprites["av_curly_boy"],
-                     0.210f, 0.80f - b1, -0.06f, 0.105f * pa2, 0, 0, 3.0f, env, true, false);
-        draw_star_4pt(fb, 0.182f, 0.71f, 0.016f*pa2, 0.016f*pa2, 0, violet_col, violet_col, false, 0.08f, env);
-        draw_star_4pt(fb, 0.168f, 0.73f, 0.011f*pa2, 0.011f*pa2, 0, violet_col, violet_col, false, 0.08f, env);
-        // Mid-right Glasses + Thumbs-Up avatar
+                     0.210f, 0.80f - b1, -0.06f, 0.108f * pa2, 0, 0, 3.0f, s.env, true, false);
         draw_card_3d(fb, g_sprites["av_glasses_thumb"],
-                     0.805f, 0.56f + b1, -0.08f, 0.110f * pa3, 0, 0, -3.0f, env, true, false);
-        // Bottom-right Winking Brunette avatar
+                     0.805f, 0.56f + b1, -0.08f, 0.112f * pa3, 0, 0, -3.0f, s.env, true, false);
         draw_card_3d(fb, g_sprites["av_brunette_wink"],
-                     0.900f, 0.72f - b1, -0.08f, 0.120f * pa4, 0, 0, 5.0f, env, true, false);
+                     0.900f, 0.72f - b1, -0.08f, 0.122f * pa4, 0, 0, 5.0f, s.env, true, false);
     }
 
     // ========================================================================
-    // SCENE 8 (41.8s - 48.5s): "Personalize with OpenGraph" + Theme Wipe + Privacy + 10 Colors
+    // SHOT 13 (35.8s - 38.8s): 3D Macro Kanban Card Drag & Drop ("Drag & drop live progress")
     // ========================================================================
-    if (t >= 41.8f && t < 48.6f) {
-        float tl = t - 42.0f;
-        float env = smoothstep(41.8f, 42.2f, t) * (1.0f - smoothstep(48.1f, 48.5f, t));
+    if (auto s = eval_shot(t, 35.8f, 38.8f); s.active) {
+        float p_txt = spring_pop(s.tl, 0.04f, 0.45f);
+        draw_card_3d(fb, g_sprites["txt_drag_drop"],
+                     0.50f, 0.14f, 0.0f,
+                     0.132f * p_txt, 0, 0, 0, s.env, false, false);
 
-        // Left Kinetic Typography: "Personalize / with OpenGraph" + 3 Pink 4-Point Stars ✦
-        float p1 = spring_pop(tl, 0.08f, 0.55f);
-        float p2 = spring_pop(tl, 0.20f, 0.55f);
+        // Tilted 3D Close-Up of Kanban Board
+        CardEffect fx_kb;
+        fx_kb.glass_sheen_pos = s.sheen;
+        fx_kb.glass_sheen_strength = 0.22f;
+        draw_card_3d(fb, g_sprites["ui_kanban_board"],
+                     0.48f - 0.22f * s.exit_u, 0.68f, 0.04f,
+                     0.58f, -14.0f, 12.0f - 8.0f * (s.tl / 2.8f), -1.5f, s.env, true, true, &fx_kb);
+
+        // Movable Card lifting high in 3D Z-space and arcing into "Completed"!
+        float drag_u = ease_in_out_cubic(clampf((s.tl - 0.25f) / 1.55f, 0.0f, 1.0f));
+        float lift = std::sin(drag_u * PI);
+        float card_x = 0.48f + 0.27f * drag_u - 0.22f * s.exit_u;
+        float card_y = 0.72f - 0.08f * lift;
+        float card_z = -0.04f - 0.20f * lift;
+        float card_roll = -9.0f * std::sin(drag_u * PI * 2.0f);
+        draw_card_3d(fb, g_sprites["ui_kanban_movable_card"],
+                     card_x, card_y, card_z,
+                     0.098f + 0.016f * lift,
+                     -10.0f, 10.0f, card_roll, s.env, true, true);
+
+        // Cursor dragging the card and releasing with a burst
+        float burst = (s.tl > 1.80f && s.tl < 2.50f) ? (s.tl - 1.80f) / 0.70f : -1.0f;
+        draw_cursor_and_click(fb, card_x + 0.03f, card_y + 0.02f, burst, s.env);
+
+        // Celebratory gold star burst on lock-in
+        if (s.tl > 1.75f) {
+            float p_st = spring_pop(s.tl, 1.75f, 0.40f);
+            draw_star_4pt(fb, 0.82f, 0.64f, 0.052f*p_st, 0.052f*p_st, s.tl*60.0f, gold_col, gold_col, false, 0.08f, s.env);
+        }
+    }
+
+    // ========================================================================
+    // SHOT 14 (38.8s - 41.8s): Personalize — Diagonal Laser Theme Wipe (Light ↔ Dark)
+    // ========================================================================
+    if (auto s = eval_shot(t, 38.8f, 41.8f); s.active) {
+        float p1 = spring_pop(s.tl, 0.06f, 0.45f);
+        float p2 = spring_pop(s.tl, 0.16f, 0.45f);
         draw_card_3d(fb, g_sprites["txt_personalize_1"],
-                     0.24f, 0.36f, 0.0f, 0.120f * p1, 0, 0, 0, env, false, false);
+                     0.24f - 0.18f * s.exit_u, 0.38f, 0.0f, 0.128f * p1, 0, 0, 0, s.env, false, false);
         draw_card_3d(fb, g_sprites["txt_personalize_2"],
-                     0.24f, 0.49f, 0.0f, 0.120f * p2, 0, 0, 0, env, false, false);
-        draw_star_4pt(fb, 0.465f, 0.42f, 0.028f*p2, 0.028f*p2, tl*30.0f, pink_glow, pink_glow, false, 0.08f, env);
-        draw_star_4pt(fb, 0.495f, 0.38f, 0.016f*p2, 0.016f*p2, -tl*40.0f, white, pink_glow, true, 0.12f, env);
-        draw_star_4pt(fb, 0.490f, 0.47f, 0.015f*p2, 0.015f*p2, tl*25.0f, pink_glow, pink_glow, false, 0.08f, env);
+                     0.24f - 0.18f * s.exit_u, 0.52f, 0.0f, 0.128f * p2, 0, 0, 0, s.env, false, false);
 
-        // Right 3D Browser Card: Live Diagonal Neon Wipe from Light Theme to Dark Theme ("GoPlay")
-        float p_br = spring_pop(tl, 0.25f, 0.65f);
+        draw_star_4pt(fb, 0.465f, 0.44f, 0.032f*p2, 0.032f*p2, s.tl*40.0f, pink_glow, pink_glow, false, 0.08f, s.env);
+        draw_star_4pt(fb, 0.495f, 0.39f, 0.018f*p2, 0.018f*p2, -s.tl*50.0f, white, pink_glow, true, 0.12f, s.env);
+
+        float p_br = spring_pop(s.tl, 0.14f, 0.55f);
         CardEffect fx_theme;
         fx_theme.theme_wipe = true;
         fx_theme.wipe_sprite = &g_sprites["ui_theme_dark"];
-        fx_theme.wipe_progress = ease_in_out_cubic((tl - 0.9f) / 2.0f);
+        fx_theme.wipe_progress = ease_in_out_cubic(clampf((s.tl - 0.35f) / 1.85f, 0.0f, 1.0f));
+        fx_theme.glass_sheen_pos = s.sheen;
+        fx_theme.glass_sheen_strength = 0.24f;
 
         draw_card_3d(fb, g_sprites["ui_theme_light"],
-                     0.72f, 0.42f, 0.04f,
-                     0.38f * p_br,
-                     5.0f, -15.0f + 3.0f*std::sin(tl*0.9f), 1.5f, env, true, true, &fx_theme);
-
-        // Pop-Over 3D Card: Board Privacy Shield ("feedback.yourdomain.io")
-        if (tl > 2.4f) {
-            float p_sh = spring_pop(tl, 2.45f, 0.60f);
-            draw_card_3d(fb, g_sprites["ui_privacy_shield"],
-                         0.56f, 0.56f, -0.12f,
-                         0.29f * p_sh,
-                         4.0f, 10.0f, -1.5f, env, true, true);
-        }
-
-        // Bottom Bar: Official 10 Zelios Brand Color Swatches rippling in a wave
-        draw_color_palette_swatches(fb, 0.87f, std::max(0.0f, tl - 0.5f), env);
+                     0.69f + 0.22f * s.exit_u, 0.52f, 0.02f,
+                     0.44f * p_br,
+                     6.0f, -16.0f + 5.0f * (s.tl / 2.8f), 1.5f, s.env, true, true, &fx_theme);
     }
 
     // ========================================================================
-    // SCENE 9 (48.3s - 53.5s): "Announce product updates" — Product Changelog & Close Loop
+    // SHOT 15 (41.8s - 44.8s): OpenGraph, Custom Domain Privacy Shield & 10-Color Palette
     // ========================================================================
-    if (t >= 48.3f && t < 53.6f) {
-        float tl = t - 48.5f;
-        float env = smoothstep(48.3f, 48.7f, t) * (1.0f - smoothstep(53.1f, 53.5f, t));
+    if (auto s = eval_shot(t, 41.8f, 44.8f); s.active) {
+        draw_card_3d(fb, g_sprites["txt_personalize_1"],
+                     0.23f - 0.20f * s.exit_u, 0.32f, 0.0f, 0.122f, 0, 0, 0, s.env, false, false);
+        draw_card_3d(fb, g_sprites["txt_personalize_2"],
+                     0.23f - 0.20f * s.exit_u, 0.45f, 0.0f, 0.122f, 0, 0, 0, s.env, false, false);
 
-        float p_txt = spring_pop(tl, 0.05f, 0.55f);
+        // Background Dark Theme Portal
+        draw_card_3d(fb, g_sprites["ui_theme_dark"],
+                     0.73f + 0.22f * s.exit_u, 0.40f, 0.06f,
+                     0.39f, 5.0f, -15.0f, 1.5f, s.env * 0.90f, true, true);
+
+        // Foreground Hero 3D Privacy Shield Card ("feedback.yourdomain.io")
+        float p_sh = spring_pop(s.tl, 0.10f, 0.50f);
+        CardEffect fx_sh;
+        fx_sh.glass_sheen_pos = s.sheen;
+        fx_sh.glass_sheen_strength = 0.28f;
+        draw_card_3d(fb, g_sprites["ui_privacy_shield"],
+                     0.55f - 0.15f * s.exit_u, 0.55f, -0.12f,
+                     0.34f * p_sh,
+                     5.0f, 12.0f - 6.0f * (s.tl / 2.8f), -1.5f, s.env, true, true, &fx_sh);
+
+        // Official 10 Brand Color Swatches rippling along bottom
+        draw_color_palette_swatches(fb, 0.87f, s.tl + 0.3f, s.env);
+    }
+
+    // ========================================================================
+    // SHOT 16 (44.8s - 47.8s): Module 3 — "Announce product updates" (3D Changelog)
+    // ========================================================================
+    if (auto s = eval_shot(t, 44.8f, 47.8f); s.active) {
+        float p_txt = spring_pop(s.tl, 0.04f, 0.45f);
         draw_card_3d(fb, g_sprites["txt_announce_updates"],
-                     0.50f, 0.15f, 0.0f, 0.130f * p_txt, 0, 0, 0, env, false, false);
+                     0.50f, 0.15f, 0.0f, 0.135f * p_txt, 0, 0, 0, s.env, false, false);
 
-        // Main 3D Card: Product Changelog ("feedback.yourdomain.com/changelog")
-        float p_ch = spring_pop(tl, 0.15f, 0.65f);
-        float shift = ease_in_out_cubic((tl - 1.8f) / 1.2f);
+        float p_ch = spring_pop(s.tl, 0.12f, 0.55f);
         CardEffect fx_ch;
-        fx_ch.highlight_pulse = (tl > 0.9f && tl < 2.5f);
+        fx_ch.highlight_pulse = (s.tl > 0.7f);
+        fx_ch.glass_sheen_pos = s.sheen;
+        fx_ch.glass_sheen_strength = 0.25f;
         fx_ch.pulse_u = 0.70f; fx_ch.pulse_v = 0.52f;
-        fx_ch.pulse_r = clampf((tl - 0.9f) * 0.18f, 0.0f, 0.24f);
-        fx_ch.pulse_alpha = clampf(1.0f - (tl - 0.9f)*0.65f, 0.0f, 1.0f);
+        fx_ch.pulse_r = clampf((s.tl - 0.7f) * 0.20f, 0.0f, 0.25f);
+        fx_ch.pulse_alpha = clampf(1.0f - (s.tl - 0.7f)*0.65f, 0.0f, 1.0f);
 
         draw_card_3d(fb, g_sprites["ui_changelog_main"],
-                     0.50f - 0.13f * shift, 0.60f, 0.05f * shift,
-                     0.46f * p_ch,
-                     6.0f, 10.0f * shift, 0.0f, env, true, true, &fx_ch);
+                     0.43f - 0.22f * s.exit_u, 0.61f, 0.04f,
+                     0.47f * p_ch,
+                     6.0f, 14.0f - 6.0f * (s.tl / 2.8f), -1.0f, s.env, true, true, &fx_ch);
 
-        // Related Posts Card ("Filter public roadmap by board / Related Posts") closing the loop!
-        if (tl > 1.7f) {
-            float p_rel = spring_pop(tl, 1.75f, 0.60f);
-            draw_card_3d(fb, g_sprites["ui_related_posts"],
-                         0.72f, 0.63f, -0.10f,
-                         0.35f * p_rel,
-                         4.0f, -14.0f, 1.0f, env, true, true);
+        // Foreground Release Notification Toast ("🚀 NEW RELEASE v2.4 • 786 voters notified")
+        if (s.tl > 0.38f) {
+            float p_tw = spring_pop(s.tl, 0.40f, 0.48f);
+            CardEffect fx_tw;
+            fx_tw.glass_sheen_pos = s.sheen;
+            fx_tw.glass_sheen_strength = 0.28f;
+            draw_card_3d(fb, g_sprites["widget_changelog_toast"],
+                         0.75f + 0.22f * s.exit_u, 0.58f, -0.14f,
+                         0.21f * p_tw, 4.0f, -15.0f, 1.5f, s.env, true, true, &fx_tw);
         }
 
-        draw_star_4pt(fb, 0.08f, 0.34f, 0.036f*p_ch, 0.036f*p_ch, tl*35.0f, teal_col, teal_col, false, 0.08f, env);
-        draw_star_4pt(fb, 0.91f, 0.26f, 0.040f*p_ch, 0.040f*p_ch, -tl*30.0f, pink_glow, purple_glow, false, 0.08f, env);
+        draw_star_4pt(fb, 0.08f, 0.34f, 0.038f*p_ch, 0.038f*p_ch, s.tl*40.0f, teal_col, teal_col, false, 0.08f, s.env);
+        draw_star_4pt(fb, 0.91f, 0.26f, 0.042f*p_ch, 0.042f*p_ch, -s.tl*35.0f, pink_glow, purple_glow, false, 0.08f, s.env);
     }
 
     // ========================================================================
-    // SCENE 10 (53.3s - 57.0s): Finale — 3-Module Hero Lockup -> "⚡ Supahub" Brand Lockup
+    // SHOT 17 (47.8s - 50.8s): Pearl-White Studio — "Close the feedback loop"
     // ========================================================================
-    if (t >= 53.3f) {
-        float tl = t - 53.4f;
-        // Part A (53.3s - 55.0s): All 3 Modules ("CHANGELOG | FEEDBACK PORTAL | ROADMAP")
-        if (t < 55.1f) {
-            float env_a = smoothstep(53.3f, 53.65f, t) * (1.0f - smoothstep(54.65f, 55.05f, t));
-            float p_m = spring_pop(tl, 0.05f, 0.55f);
-            draw_card_3d(fb, g_sprites["ui_three_modules"],
-                         0.50f, 0.54f, 0.0f,
-                         0.48f * p_m,
-                         4.0f * (1.0f - tl*0.4f), 0.0f, 0.0f, env_a, true, true);
-            draw_star_4pt(fb, 0.09f, 0.66f, 0.042f*p_m, 0.042f*p_m, tl*40.0f, hex_rgb(0x787DFC), hex_rgb(0x787DFC), false, 0.08f, env_a);
-            draw_star_4pt(fb, 0.90f, 0.26f, 0.044f*p_m, 0.044f*p_m, -tl*35.0f, pink_glow, pink_glow, false, 0.08f, env_a);
-        }
+    if (auto s = eval_shot(t, 47.8f, 50.8f); s.active) {
+        float p_txt = spring_pop(s.tl, 0.04f, 0.45f);
+        draw_card_3d(fb, g_sprites["txt_close_loop"],
+                     0.50f, 0.15f, 0.0f, 0.135f * p_txt, 0, 0, 0, s.env, false, false);
 
-        // Part B (54.7s - 57.0s): Iconic Zelios Finale — Light Lavender Canvas + 3D Blurred Stars + "⚡ Supahub"
-        if (t >= 54.7f) {
-            float tb = t - 54.8f;
-            float env_b = smoothstep(54.7f, 55.1f, t);
-            float p_logo = spring_pop(tb, 0.08f, 0.60f, 8.8f, 4.8f);
+        // Left 3D Card: Changelog
+        float p_ch = spring_pop(s.tl, 0.10f, 0.52f);
+        draw_card_3d(fb, g_sprites["ui_changelog_main"],
+                     0.34f - 0.22f * s.exit_u, 0.61f, 0.06f,
+                     0.42f * p_ch, 6.0f, 15.0f, -1.0f, s.env, true, true);
 
-            // Large left 3D purple outline 4-point star (matching Zelios finale frame 1:1!)
-            draw_star_4pt(fb, 0.17f, 0.44f, 0.18f * p_logo, 0.18f * p_logo,
-                          -18.0f + tb * 5.0f, white, purple_glow, true, 0.085f, env_b * 0.90f);
-            // Top-left pink bokeh 4-point star
-            draw_star_4pt(fb, 0.125f, 0.21f, 0.032f * p_logo, 0.032f * p_logo,
-                          tb * 25.0f, pink_glow, pink_glow, false, 0.08f, env_b * 0.70f);
-            // Right mid-ground purple bokeh 4-point star
-            draw_star_4pt(fb, 0.665f, 0.41f, 0.030f * p_logo, 0.030f * p_logo,
-                          15.0f - tb * 20.0f, violet_col, purple_glow, false, 0.08f, env_b * 0.75f);
+        // Right Foreground 3D Card: Link Related Posts ("Filter public roadmap by board")
+        float p_rel = spring_pop(s.tl, 0.18f, 0.52f);
+        CardEffect fx_rel;
+        fx_rel.highlight_pulse = (s.tl > 0.8f);
+        fx_rel.glass_sheen_pos = s.sheen;
+        fx_rel.glass_sheen_strength = 0.25f;
+        fx_rel.pulse_u = 0.85f; fx_rel.pulse_v = 0.46f;
+        fx_rel.pulse_r = clampf((s.tl - 0.8f) * 0.20f, 0.0f, 0.24f);
+        fx_rel.pulse_alpha = clampf(1.0f - (s.tl - 0.8f)*0.65f, 0.0f, 1.0f);
 
-            // Center "⚡ Supahub" Wordmark + Tagline
-            draw_card_3d(fb, g_sprites["logo_supahub_finale"],
-                         0.50f, 0.56f, 0.0f,
-                         0.215f * p_logo,
-                         0.0f, 0.0f, 0.0f, env_b, false, false);
+        draw_card_3d(fb, g_sprites["ui_related_posts"],
+                     0.69f + 0.22f * s.exit_u, 0.62f, -0.10f,
+                     0.40f * p_rel, 4.0f, -15.0f + 5.0f * (s.tl / 2.8f), 1.0f, s.env, true, true, &fx_rel);
+
+        float cur_u = ease_out_cubic(s.tl / 0.85f);
+        float cx_c = 0.60f + 0.18f * cur_u;
+        float cy_c = 0.72f - 0.16f * cur_u;
+        float burst = (s.tl > 0.85f && s.tl < 1.55f) ? (s.tl - 0.85f) / 0.7f : -1.0f;
+        draw_cursor_and_click(fb, cx_c, cy_c, burst, s.env);
+
+        draw_star_4pt(fb, 0.10f, 0.24f, 0.038f*p_ch, 0.038f*p_ch, s.tl*40.0f, violet_col, purple_glow, false, 0.08f, s.env);
+    }
+
+    // ========================================================================
+    // SHOT 18 (50.8s - 53.8s): Unified 3-Module 3D Glass Monument ("All-in-one feedback OS")
+    // ========================================================================
+    if (auto s = eval_shot(t, 50.8f, 53.8f); s.active) {
+        float p_txt = spring_pop(s.tl, 0.04f, 0.45f);
+        draw_card_3d(fb, g_sprites["txt_all_in_one"],
+                     0.50f, 0.15f - 0.15f * s.exit_u, 0.0f,
+                     0.138f * p_txt, 0, 0, 0, s.env, false, false);
+
+        float p_m = spring_pop(s.tl, 0.12f, 0.55f);
+        CardEffect fx_m;
+        fx_m.glass_sheen_pos = s.sheen;
+        fx_m.glass_sheen_strength = 0.28f;
+        draw_card_3d(fb, g_sprites["ui_three_modules"],
+                     0.50f, 0.58f, 0.0f,
+                     0.50f * p_m * (1.0f + 0.22f * s.exit_u),
+                     8.0f * (1.0f - s.tl * 0.35f), 8.0f * std::sin(s.tl * 1.4f), 0.0f,
+                     s.env, true, true, &fx_m);
+
+        draw_star_4pt(fb, 0.09f, 0.66f, 0.044f*p_m, 0.044f*p_m, s.tl*45.0f, hex_rgb(0x787DFC), hex_rgb(0x787DFC), false, 0.08f, s.env);
+        draw_star_4pt(fb, 0.90f, 0.26f, 0.046f*p_m, 0.046f*p_m, -s.tl*40.0f, pink_glow, pink_glow, false, 0.08f, s.env);
+    }
+
+    // ========================================================================
+    // SHOT 19 (53.8s - 57.0s): Apple-Level Finale Brand Lockup ("⚡ Supahub")
+    // ========================================================================
+    if (t >= 53.6f) {
+        float tb = std::max(0.0f, t - 53.8f);
+        float env_b = smoothstep(53.6f, 54.05f, t);
+        float p_logo = spring_pop(tb, 0.06f, 0.55f, 8.8f, 4.8f);
+
+        draw_star_4pt(fb, 0.17f, 0.44f, 0.18f * p_logo, 0.18f * p_logo,
+                      -18.0f + tb * 6.0f, white, purple_glow, true, 0.085f, env_b * 0.92f);
+        draw_star_4pt(fb, 0.125f, 0.21f, 0.034f * p_logo, 0.034f * p_logo,
+                      tb * 30.0f, pink_glow, pink_glow, false, 0.08f, env_b * 0.75f);
+        draw_star_4pt(fb, 0.665f, 0.36f, 0.032f * p_logo, 0.032f * p_logo,
+                      15.0f - tb * 25.0f, violet_col, purple_glow, false, 0.08f, env_b * 0.80f);
+        draw_star_4pt(fb, 0.84f, 0.70f, 0.040f * p_logo, 0.040f * p_logo,
+                      tb * 28.0f, gold_col, gold_col, false, 0.08f, env_b * 0.80f);
+
+        CardEffect fx_lg;
+        fx_lg.glass_sheen_pos = clampf((tb / 2.6f) * 1.2f, 0.0f, 1.1f);
+        fx_lg.glass_sheen_strength = 0.24f;
+        draw_card_3d(fb, g_sprites["logo_supahub_finale"],
+                     0.50f, 0.50f, 0.0f,
+                     0.225f * p_logo,
+                     0.0f, 0.0f, 0.0f, env_b, false, false, &fx_lg);
+
+        // Glowing CTA Pill ("Start free at supahub.com →")
+        if (tb > 0.35f) {
+            float p_cta = spring_pop(tb, 0.38f, 0.50f);
+            CardEffect fx_cta;
+            fx_cta.glass_sheen_pos = clampf(((tb - 0.35f) / 2.0f) * 1.2f, 0.0f, 1.1f);
+            fx_cta.glass_sheen_strength = 0.30f;
+            draw_card_3d(fb, g_sprites["widget_cta_pill"],
+                         0.50f, 0.77f, -0.05f,
+                         0.076f * p_cta,
+                         0.0f, 0.0f, 0.0f, env_b, true, false, &fx_cta);
         }
     }
+
+    // Apple-style Anamorphic Horizontal Lens Flare across all 18 3-second shot cuts!
+    draw_anamorphic_transition(fb, t);
 }
 
 static void write_rgb24(FILE* out, const FrameBuffer& fb) {
