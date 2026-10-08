@@ -1,4 +1,4 @@
-name: Expo Go UI checks
+name: Expo and desktop-host checks
 
 on:
   push:
@@ -8,6 +8,8 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-24.04
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: 1
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -16,6 +18,26 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run verify
+      - run: node --check desktop/main.cjs
       - run: npx expo export --platform android
       - run: npx expo export --platform ios
       - run: npx expo export --platform web
+      - name: Export mobile companion bundles
+        working-directory: apps/mobile-companion
+        run: npx expo export --platform android --platform ios
+
+  windows-installer:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run desktop:build:win
+      - uses: actions/upload-artifact@v7
+        with:
+          name: LumaStudio-Windows
+          path: release/*.exe
+          if-no-files-found: error

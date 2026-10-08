@@ -2,8 +2,8 @@ node_modules/
 .expo/
 dist/
 web-build/
-android/
-ios/
+release/
+*.asar
 expo-env.d.ts
 *.log
 *.tsbuildinfo

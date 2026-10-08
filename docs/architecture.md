@@ -1,17 +1,19 @@
-# Runtime and motion notes
+# Luma local preview architecture
 
-## Compatibility boundary
+## Components
 
-- Expo SDK 54 with React Native 0.81.5.
-- `expo.newArchEnabled` is explicitly `false` for iOS/Android native projects generated from this app config.
-- Standard Expo Go runtime for SDK/module compatibility; no prebuild-generated native projects are needed just to run the interface in Expo Go.
-- Blur, gradients, haptics, icons, and status-bar styling come from Expo-maintained packages available in Expo Go.
-- Screen motion, press feedback, message entrances, and the shared-avatar transition use React Native's core `Animated` API with the native driver. There is no Reanimated, Worklets, Skia, or custom native code.
+- `desktop/` — Electron Windows host. It selects an Expo project, discovers a private LAN IPv4 address, starts that project's Metro web server on port 8081, creates a QR code, and displays local status. It stores no cloud credentials and opens no tunnel.
+- Root Expo project — the preview target. The current target is the original Luma glass-chat UI. Expo web runs on the PC; Metro hot reload updates an already-connected WebView when source files change.
+- `apps/mobile-companion/` — Luma Link. Expo Camera reads only QR codes containing private RFC1918 IPv4 HTTP links. A validated link opens inside `react-native-webview`; navigation to other hosts is blocked.
 
-Expo Go is a compiled client. Its native architecture is fixed by the Go binary, not by this app's `newArchEnabled` config. The SDK-54 Android Expo Go build uses the New Architecture; using Expo Go therefore checks managed-runtime compatibility, but does not validate a legacy-architecture native build. A native project generated from this config is needed to verify that requirement. Expo Go itself must also match SDK 54.
+The mobile companion's Metro server uses port 8082 so it can run beside the PC's preview server on port 8081. Keep the PC and phone on the same Wi-Fi. Windows Firewall must allow the Node.js preview process on private networks.
 
-## Transition design
+## Legacy-architecture boundary
 
-Opening a conversation animates the inbox left and slightly back while the chat enters from the right. The tapped contact avatar is measured in the inbox and rendered once in an absolute overlay; the overlay springs to the matching avatar position in the chat header, while the two in-place avatars are temporarily hidden. Closing reverses that path to the measured inbox origin. If reduced motion is enabled, navigation switches without the morph.
+Both Expo configs set `newArchEnabled: false`. UI motion uses React Native core `Animated`; the native scanner uses Expo Camera and WebView. There are no Reanimated, Worklets, Skia, or custom native modules. The APIs are legacy-compatible and are supported in a matching Expo Go client.
 
-All decorative glass treatments are layered from a translucent Expo `BlurView`, a restrained gradient, and a fine border. Android may render blur differently from iOS, so the translucent fill and border remain part of the visual rather than relying on blur alone.
+Expo Go is prebuilt, and its own architecture is controlled by the Go binary rather than `newArchEnabled`. Therefore Expo Go checks SDK/module compatibility but cannot prove that the app is running on the legacy architecture. A native build generated from the companion config is needed for that check.
+
+## Preview limitations
+
+Luma Link embeds the web export/dev-server view, not the native iOS/Android renderer. Blur and gradients have web implementations, but native haptics, camera behavior of the target app, and platform-specific native layouts are not represented in the remote web preview. No public tunnel or cloud relay is configured.

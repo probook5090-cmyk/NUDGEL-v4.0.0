@@ -7,5 +7,16 @@
     "allowJs": true,
     "types": ["react"]
   },
-  "include": ["App.tsx", "src/**/*.ts", "src/**/*.tsx", "index.js"]
+  "include": [
+    "App.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "index.js",
+    "desktop/**/*.js",
+    "desktop/**/*.cjs",
+    "apps/mobile-companion/**/*.ts",
+    "apps/mobile-companion/**/*.tsx",
+    "apps/mobile-companion/**/*.js",
+    "apps/mobile-companion/**/*.mjs"
+  ]
 }
