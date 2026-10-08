@@ -1,0 +1,76 @@
+{
+  "name": "luma-local-preview",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "start": "expo start --go",
+    "android": "expo start --go --android",
+    "ios": "expo start --go --ios",
+    "web": "expo start --web",
+    "web:lan": "expo start --web --host lan",
+    "desktop": "electron desktop/main.cjs",
+    "desktop:build:win": "npm ci --prefix desktop && electron-builder --win nsis --publish never",
+    "companion": "cd apps/mobile-companion && expo start --go --host lan --port 8082",
+    "companion:android": "cd apps/mobile-companion && expo start --go --android --host lan --port 8082",
+    "companion:ios": "cd apps/mobile-companion && expo start --go --ios --host lan --port 8082",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint App.tsx src tests index.js desktop apps/mobile-companion",
+    "test": "node --test tests/*.test.mjs",
+    "verify": "npm run typecheck && npm run lint && npm test"
+  },
+  "dependencies": {
+    "@expo/metro-runtime": "~6.1.2",
+    "@expo/vector-icons": "~15.0.3",
+    "expo": "~54.0.37",
+    "expo-blur": "~15.0.8",
+    "expo-camera": "~17.0.10",
+    "expo-font": "~14.0.12",
+    "expo-haptics": "~15.0.8",
+    "expo-linear-gradient": "~15.0.8",
+    "expo-status-bar": "~3.0.9",
+    "qrcode": "^1.5.4",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-web": "~0.21.0",
+    "react-native-webview": "13.15.0"
+  },
+  "devDependencies": {
+    "@types/react": "~19.1.10",
+    "babel-preset-expo": "~54.0.12",
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3",
+    "eslint": "^9.25.0",
+    "eslint-config-expo": "~10.0.0",
+    "prettier": "^3.9.8",
+    "typescript": "~5.9.2"
+  },
+  "build": {
+    "appId": "com.nudgel.lumastudio",
+    "productName": "Luma Studio",
+    "directories": {
+      "app": "desktop",
+      "output": "release"
+    },
+    "asar": true,
+    "files": [
+      "**/*",
+      "!package-lock.json"
+    ],
+    "win": {
+      "icon": "desktop/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

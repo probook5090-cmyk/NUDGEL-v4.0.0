@@ -1,0 +1,59 @@
+name: Expo and desktop-host checks
+
+on:
+  push:
+    branches: [main, "arena/**"]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run verify
+      - run: node --check desktop/main.cjs
+      - run: npx expo export --platform android
+      - run: npx expo export --platform ios
+      - run: npx expo export --platform web
+      - name: Export mobile companion bundles
+        working-directory: apps/mobile-companion
+        run: npx expo export --platform android --platform ios
+
+  windows-installer:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build Windows installer
+        shell: pwsh
+        run: |
+          $buildOutput = npm run desktop:build:win 2>&1
+          $buildExitCode = $LASTEXITCODE
+          $buildOutput | ForEach-Object { Write-Output $_ }
+          if ($buildExitCode -ne 0) {
+            $diagnosticLines = @($buildOutput | Where-Object { "$_" -notmatch "duplicate dependency references" } | Select-Object -Last 10)
+            $details = ($diagnosticLines | ForEach-Object {
+              $line = "$_"
+              if ($line.Length -gt 180) { $line = $line.Substring(0, 177) + "..." }
+              $line
+            }) -join " | "
+            $details = $details.Replace("%", "%25").Replace("`r", "%0D").Replace("`n", "%0A")
+            Write-Output "::error title=Windows installer build diagnostic::$details"
+            exit $buildExitCode
+          }
+      - uses: actions/upload-artifact@v7
+        with:
+          name: LumaStudio-Windows
+          path: release/*.exe
+          if-no-files-found: error

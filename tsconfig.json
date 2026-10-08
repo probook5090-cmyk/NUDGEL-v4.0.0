@@ -1,0 +1,22 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "allowJs": true,
+    "types": ["react"]
+  },
+  "include": [
+    "App.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "index.js",
+    "desktop/**/*.js",
+    "desktop/**/*.cjs",
+    "apps/mobile-companion/**/*.ts",
+    "apps/mobile-companion/**/*.tsx",
+    "apps/mobile-companion/**/*.js",
+    "apps/mobile-companion/**/*.mjs"
+  ]
+}

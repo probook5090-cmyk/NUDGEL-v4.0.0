@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <title>Luma Studio</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, "Segoe UI", system-ui, sans-serif;
+        color: #f7f5ff;
+        background: #090b15;
+        font-synthesis: none;
+        text-rendering: optimizeLegibility;
+        --muted: #8990a7;
+        --lavender: #b9aaff;
+        --line: rgba(255, 255, 255, 0.1);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-width: 800px;
+        min-height: 100vh;
+        overflow: hidden;
+        background:
+          radial-gradient(ellipse 38rem 32rem at 79% 8%, rgba(82, 61, 142, .25), transparent 68%),
+          radial-gradient(ellipse 34rem 32rem at 0% 100%, rgba(31, 76, 94, .18), transparent 70%),
+          linear-gradient(135deg, #111428, #090b15 55%, #0b121b);
+      }
+      .shell { width: min(1120px, 100%); min-height: 100vh; margin: auto; padding: 28px 42px 24px; display: flex; flex-direction: column; }
+      .topbar { display: flex; align-items: center; justify-content: space-between; }
+      .brand { display: flex; align-items: center; gap: 12px; }
+      .mark { width: 40px; height: 40px; border-radius: 14px; display: grid; place-items: center; color: white; font-size: 19px; background: linear-gradient(145deg, #c5b5ff, #6679ed); box-shadow: 0 8px 28px rgba(132, 110, 230, .28); }
+      .brand-name { font-size: 15px; font-weight: 750; letter-spacing: .02em; }
+      .brand-caption { margin-top: 3px; color: var(--muted); font-size: 9px; letter-spacing: .18em; font-weight: 650; }
+      .local-pill { height: 31px; padding: 0 12px; display: inline-flex; align-items: center; gap: 8px; border: 1px solid rgba(122, 226, 185, .16); border-radius: 999px; background: rgba(89, 203, 159, .07); color: #b7e8d3; font-size: 10px; font-weight: 700; letter-spacing: .08em; }
+      .dot { width: 7px; height: 7px; border-radius: 50%; background: #78dfb5; box-shadow: 0 0 12px rgba(120,223,181,.75); }
+      main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 380px; align-items: center; gap: 54px; padding: 22px 3px 30px; }
+      .eyebrow { color: #a99ad9; font-size: 10px; font-weight: 750; letter-spacing: .19em; }
+      h1 { margin: 18px 0 15px; font-size: clamp(42px, 5vw, 58px); line-height: 1.04; letter-spacing: -.055em; font-weight: 720; }
+      h1 span { color: #b9aaff; }
+      .intro { max-width: 440px; color: #a0a6ba; font-size: 14px; line-height: 1.75; }
+      .steps { display: grid; gap: 12px; margin-top: 30px; }
+      .step { display: flex; align-items: center; gap: 12px; color: #c1c5d3; font-size: 12px; }
+      .step-number { width: 25px; height: 25px; border: 1px solid rgba(185,170,255,.24); border-radius: 9px; display: grid; place-items: center; color: #d0c7ff; background: rgba(185,170,255,.08); font-size: 10px; font-weight: 750; }
+      .folder-row { margin-top: 28px; display: flex; align-items: center; gap: 10px; }
+      .folder-name { color: #777e94; font-size: 10px; max-width: 270px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      button { border: 0; font: inherit; cursor: pointer; }
+      .text-button { padding: 0; color: #c5baff; background: transparent; font-size: 10px; font-weight: 700; }
+      .text-button:hover { color: white; }
+      .qr-card { position: relative; padding: 25px; border: 1px solid rgba(255,255,255,.13); border-radius: 30px; background: linear-gradient(145deg, rgba(255,255,255,.09), rgba(255,255,255,.035)); box-shadow: 0 30px 90px rgba(0,0,0,.25); overflow: hidden; }
+      .qr-card::before { content: ""; position: absolute; top: -95px; right: -90px; width: 230px; height: 230px; border-radius: 50%; background: rgba(139,117,239,.15); filter: blur(36px); pointer-events: none; }
+      .qr-top { position: relative; display: flex; align-items: center; justify-content: space-between; }
+      .qr-label { color: #a9afc2; font-size: 9px; font-weight: 750; letter-spacing: .16em; }
+      .status { color: #8c93a9; font-size: 10px; }
+      .status.ready { color: #9ce2c4; }
+      .status.error { color: #ff9aa7; }
+      .qr-box { position: relative; width: 250px; height: 250px; margin: 21px auto 16px; border: 1px solid rgba(255,255,255,.55); border-radius: 19px; display: grid; place-items: center; background: #fff; box-shadow: 0 15px 44px rgba(0,0,0,.3); }
+      .qr-box img { width: 224px; height: 224px; object-fit: contain; display: none; }
+      .qr-box img.visible { display: block; }
+      .qr-placeholder { width: 56px; height: 56px; display: grid; place-items: center; border: 1px solid #d7d2ed; border-radius: 17px; color: #8b7ad4; font-size: 23px; background: #f3f0ff; }
+      .qr-placeholder.hidden { display: none; }
+      .link-label { margin-top: 3px; color: #8189a0; text-align: center; font-size: 9px; font-weight: 700; letter-spacing: .14em; }
+      .url { display: block; margin-top: 8px; padding: 11px 12px; border: 1px solid rgba(255,255,255,.08); border-radius: 12px; color: #d7d2f6; background: rgba(0,0,0,.2); text-align: center; font: 11px ui-monospace, SFMono-Regular, Consolas, monospace; overflow-wrap: anywhere; min-height: 37px; }
+      .actions { margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+      .action { min-height: 40px; padding: 0 12px; border: 1px solid rgba(255,255,255,.11); border-radius: 12px; color: #d6d8e4; background: rgba(255,255,255,.06); font-size: 11px; font-weight: 650; transition: background .18s ease, transform .18s ease; }
+      .action:hover:not(:disabled) { background: rgba(255,255,255,.12); transform: translateY(-1px); }
+      .action.primary { color: #17152a; border-color: transparent; background: linear-gradient(135deg, #c1b3ff, #8c9aff); }
+      .action.primary:hover:not(:disabled) { background: linear-gradient(135deg, #ded6ff, #aab3ff); }
+      .action:disabled { opacity: .42; cursor: default; }
+      .hint { margin: 15px 2px 0; color: #7b8399; font-size: 10px; line-height: 1.55; text-align: center; }
+      footer { display: flex; justify-content: space-between; gap: 16px; color: #697188; font-size: 9px; }
+      .footer-right { text-align: right; }
+      @media (max-width: 900px) {
+        .shell { padding: 23px 28px; }
+        main { grid-template-columns: minmax(0,1fr) 340px; gap: 28px; }
+        .qr-card { padding: 21px; }
+      }
+      @media (max-height: 720px) {
+        .shell { padding-top: 18px; padding-bottom: 16px; }
+        main { padding-top: 8px; padding-bottom: 12px; }
+        .steps { margin-top: 20px; gap: 8px; }
+        .qr-box { width: 220px; height: 220px; margin: 13px auto; }
+        .qr-box img { width: 198px; height: 198px; }
+        .qr-card { padding: 19px 24px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <header class="topbar">
+        <div class="brand">
+          <div class="mark">✦</div>
+          <div>
+            <div class="brand-name">Luma Studio</div>
+            <div class="brand-caption">YOUR PRIVATE PREVIEW DESK</div>
+          </div>
+        </div>
+        <div class="local-pill"><span class="dot"></span> LOCAL NETWORK ONLY</div>
+      </header>
+      <main>
+        <section>
+          <div class="eyebrow">WINDOWS HOST · LIVE PHONE PREVIEW</div>
+          <h1>See every edit<br /><span>on your phone.</span></h1>
+          <p class="intro">Luma Studio serves this Expo project from your PC over your home or office Wi-Fi. Scan once with Luma Link; Metro hot reloads your changes without scanning again.</p>
+          <div class="steps">
+            <div class="step"><span class="step-number">01</span> Keep this PC and phone on the same Wi-Fi.</div>
+            <div class="step"><span class="step-number">02</span> Open Luma Link on your phone and scan the code.</div>
+            <div class="step"><span class="step-number">03</span> Edit the project; the phone preview updates live.</div>
+          </div>
+          <div class="folder-row">
+            <button class="text-button" id="choose-project">Choose project folder</button>
+            <span class="folder-name" id="project-path">Checking project…</span>
+          </div>
+        </section>
+        <section class="qr-card">
+          <div class="qr-top">
+            <span class="qr-label">PHONE LINK</span>
+            <span class="status" id="status">Starting…</span>
+          </div>
+          <div class="qr-box">
+            <div class="qr-placeholder" id="qr-placeholder">✦</div>
+            <img id="qr-image" alt="QR code for this PC's live preview" />
+          </div>
+          <div class="link-label">SCAN WITH LUMA LINK</div>
+          <code class="url" id="preview-url">Finding this PC on your network…</code>
+          <div class="actions">
+            <button class="action primary" id="copy-link" disabled>Copy link</button>
+            <button class="action" id="open-preview" disabled>Open on this PC</button>
+            <button class="action" id="restart">Restart preview</button>
+            <button class="action" id="stop">Stop preview</button>
+          </div>
+          <p class="hint" id="hint">Allow Node.js through Windows Firewall on private networks if the phone cannot connect.</p>
+        </section>
+      </main>
+      <footer>
+        <span>Edits stay on this PC · No cloud upload · No tunneling</span>
+        <span class="footer-right" id="host-note">Expo web preview · port 8081</span>
+      </footer>
+    </div>
+    <script src="renderer.js"></script>
+  </body>
+</html>

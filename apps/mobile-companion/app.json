@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "Luma Link",
+    "slug": "luma-link",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "../../assets/images/icon.png",
+    "scheme": "lumalink",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": false,
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Luma Link to scan the QR code shown on your PC.",
+          "recordAudioAndroid": false
+        }
+      ]
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.nudgel.lumalink",
+      "infoPlist": {
+        "NSLocalNetworkUsageDescription": "Luma Link connects to a live preview running on your PC over your local network.",
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true,
+          "NSAllowsArbitraryLoadsInWebContent": true
+        }
+      }
+    },
+    "android": {
+      "package": "com.nudgel.lumalink",
+      "usesCleartextTraffic": true,
+      "permissions": ["android.permission.CAMERA"]
+    }
+  }
+}
