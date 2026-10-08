@@ -35,7 +35,18 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run desktop:build:win
+      - name: Build Windows installer
+        shell: pwsh
+        run: |
+          $buildOutput = npm run desktop:build:win 2>&1
+          $buildExitCode = $LASTEXITCODE
+          $buildOutput | ForEach-Object { Write-Output $_ }
+          if ($buildExitCode -ne 0) {
+            $details = ($buildOutput | Select-Object -Last 30 | ForEach-Object { "$_" }) -join " | "
+            $details = $details.Replace("%", "%25").Replace("`r", "%0D").Replace("`n", "%0A")
+            Write-Output "::error title=Windows installer build diagnostic::$details"
+            exit $buildExitCode
+          }
       - uses: actions/upload-artifact@v7
         with:
           name: LumaStudio-Windows
