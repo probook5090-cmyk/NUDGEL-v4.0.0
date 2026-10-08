@@ -10,7 +10,7 @@
     "web": "expo start --web",
     "web:lan": "expo start --web --host lan",
     "desktop": "electron desktop/main.cjs",
-    "desktop:build:win": "electron-builder --win nsis",
+    "desktop:build:win": "npm ci --prefix desktop && electron-builder --win nsis --publish never",
     "companion": "cd apps/mobile-companion && expo start --go --host lan --port 8082",
     "companion:android": "cd apps/mobile-companion && expo start --go --android --host lan --port 8082",
     "companion:ios": "cd apps/mobile-companion && expo start --go --ios --host lan --port 8082",
@@ -51,23 +51,16 @@
     "appId": "com.nudgel.lumastudio",
     "productName": "Luma Studio",
     "directories": {
+      "app": "desktop",
       "output": "release"
     },
     "asar": true,
     "files": [
-      "desktop/**/*",
-      "assets/images/icon.png",
-      "assets/images/icon.ico",
-      "package.json"
+      "**/*",
+      "!package-lock.json"
     ],
-    "extraMetadata": {
-      "main": "desktop/main.cjs",
-      "dependencies": {
-        "qrcode": "^1.5.4"
-      }
-    },
     "win": {
-      "icon": "assets/images/icon.ico",
+      "icon": "desktop/icon.ico",
       "target": [
         {
           "target": "nsis",

@@ -7,6 +7,7 @@ const companionConfig = JSON.parse(
   await readFile(new URL("../apps/mobile-companion/app.json", import.meta.url), "utf8"),
 );
 const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+const desktopPackage = JSON.parse(await readFile(new URL("../desktop/package.json", import.meta.url), "utf8"));
 const appSource = await readFile(new URL("../App.tsx", import.meta.url), "utf8");
 const companionSource = await readFile(new URL("../apps/mobile-companion/App.tsx", import.meta.url), "utf8");
 
@@ -35,6 +36,10 @@ test("the desktop host and mobile companion use separate managed Expo entry poin
   assert.ok(companionConfig.expo.android.package);
   assert.equal(packageJson.scripts.start, "expo start --go");
   assert.match(packageJson.scripts.desktop, /electron desktop\/main\.cjs/);
+  assert.match(packageJson.scripts["desktop:build:win"], /npm ci --prefix desktop/);
+  assert.equal(packageJson.build.directories.app, "desktop");
+  assert.equal(desktopPackage.main, "main.cjs");
+  assert.deepEqual(Object.keys(desktopPackage.dependencies), ["qrcode"]);
   assert.match(packageJson.scripts.companion, /apps\/mobile-companion/);
 });
 

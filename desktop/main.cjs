@@ -341,7 +341,7 @@ function createWindow() {
     minHeight: 650,
     backgroundColor: "#0A0C17",
     title: "Luma Studio",
-    icon: path.join(__dirname, "..", "assets", "images", "icon.png"),
+    icon: path.join(__dirname, "icon.ico"),
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
