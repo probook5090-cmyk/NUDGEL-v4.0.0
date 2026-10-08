@@ -42,7 +42,12 @@ jobs:
           $buildExitCode = $LASTEXITCODE
           $buildOutput | ForEach-Object { Write-Output $_ }
           if ($buildExitCode -ne 0) {
-            $details = ($buildOutput | Select-Object -Last 30 | ForEach-Object { "$_" }) -join " | "
+            $diagnosticLines = @($buildOutput | Where-Object { "$_" -notmatch "duplicate dependency references" } | Select-Object -Last 10)
+            $details = ($diagnosticLines | ForEach-Object {
+              $line = "$_"
+              if ($line.Length -gt 180) { $line = $line.Substring(0, 177) + "..." }
+              $line
+            }) -join " | "
             $details = $details.Replace("%", "%25").Replace("`r", "%0D").Replace("`n", "%0A")
             Write-Output "::error title=Windows installer build diagnostic::$details"
             exit $buildExitCode
